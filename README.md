@@ -27,7 +27,7 @@ curl http://127.0.0.1:8080/v1/systemone \
 
 Tokens require `iss`, `aud`, `exp`, `sub`, `scope`, and a `models` allowlist. Decisions require `clef:decide`; discovery, health, and metrics require `clef:observe`. Every route requires authentication. No key discovery or token URL fetch occurs during serving. Non-loopback listeners require an explicitly configured authenticated TLS ingress.
 
-The core exposes `ArtifactStore`, `DirectEngine`, and the bounded actor `Runtime`/`DecisionClient`; see the [embedded example](crates/core/examples/decision.rs). An optional `vision` feature provides bounded PNG/JPEG and RGB image inputs; run `make native-jpeg` first to install the pinned reference-compatible JPEG codec. CUDA, Metal, video, the larger CLEF model, and unqualified contexts fail explicitly in this first version.
+The core exposes `ArtifactStore`, `DirectEngine`, and the bounded actor `Runtime`/`DecisionClient`; see the [embedded example](crates/core/examples/decision.rs). An optional `vision` feature provides bounded PNG/JPEG and RGB image inputs; run `make native-jpeg` first to install the pinned reference-compatible JPEG codec. Apple Silicon Metal supports F32 and mixed F16 profiles with `--features metal`; use [the Metal configuration](examples/clef.metal.yaml). CUDA, video, the larger CLEF model, and unqualified contexts fail explicitly in this first version.
 
 ## Verify
 
@@ -41,3 +41,5 @@ make verify-media-release verify-jpeg-release CLEF_RELEASE_CACHE=/path/to/model-
 Fast CI uses CPU and image operator fixtures and needs no model download. Full-release tests are explicitly ignored in ordinary `cargo test` because they require the complete weights and substantial RAM. The checked-in unrounded Python oracle covers 100 real Flash requests; Python is needed only to regenerate verification fixtures (`make reference-env`, `make reference-fixtures`, `make reference-release`).
 
 Rust 2024 and stable Rust 1.99.0 are pinned. Source is MIT licensed; the model's Apache-2.0 license and notices remain separate and are preserved in the cache.
+
+Real-weight CPU/Metal benchmarks and domain microbenchmarks are available through `make bench-inference` and `make bench-domain`. See [benchmark usage](docs/clef-flash-benchmarks.md) for workloads, reproduction, and measured results.

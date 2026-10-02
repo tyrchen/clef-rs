@@ -12,7 +12,7 @@ use tokenizers::Tokenizer;
 
 use crate::{
     Error, Result,
-    artifacts::{hex, read_bounded},
+    artifacts::{VerifiedSnapshot, hex, read_bounded},
     types::DecisionRequest,
 };
 
@@ -105,6 +105,13 @@ impl Debug for Encoder {
     }
 }
 impl Encoder {
+    /// Create an encoder from the tokenizer in a verified pinned snapshot.
+    ///
+    /// # Errors
+    /// Returns an error for missing, changed or malformed tokenizer bytes.
+    pub fn from_snapshot(snapshot: &VerifiedSnapshot) -> Result<Self> {
+        Self::load(&snapshot.file("tokenizer.json")?)
+    }
     /// Load a reviewed tokenizer JSON from a verified local snapshot.
     ///
     /// # Errors

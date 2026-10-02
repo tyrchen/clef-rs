@@ -51,4 +51,5 @@ base64 = "0.22"
 tempfile = "3"
 proptest = "1.11"
 rstest = "0.27"
+criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support"] }
 clef-rs-core = { path = "crates/core", default-features = false }

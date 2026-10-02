@@ -76,16 +76,51 @@ impl Weights {
                 if name.starts_with("model.visual.") && !load_vision {
                     continue;
                 }
-                let tensor =
+                // Keep the classifier head in F32 for every execution profile.
+                let dtype =
+                    if file.name == "joint_head.safetensors" || name.starts_with("model.visual.") {
+                        DType::F32
+                    } else {
+                        dtype
+                    };
+                // Host conversion prevents queued BF16->F32/F16 Metal casts from
+                // retaining a second model-sized GPU allocation during loading.
+                let tensor = if device.is_metal() {
+                    Tensor::from_raw_buffer(view.data(), DType::BF16, view.shape(), &Device::Cpu)?
+                        .to_dtype(dtype)?
+                        .to_device(device)?
+                } else {
                     Tensor::from_raw_buffer(view.data(), DType::BF16, view.shape(), device)?
-                        .to_dtype(dtype)?;
+                        .to_dtype(dtype)?
+                };
                 tensors.insert(name, tensor);
             }
         }
+        tracing::info!("All reviewed Flash weight tensors loaded");
         if seen.len() != specs.len() {
             return Err(Error::IntegrityMismatch("missing required tensor".into()));
         }
         Ok(Self { tensors })
+    }
+    pub(crate) fn f32_promotion_bytes(load_vision: bool) -> Result<u64> {
+        let specs: HashMap<String, TensorSpec> =
+            serde_json::from_slice(include_bytes!("../artifacts/clef-flash-tensors.json"))?;
+        specs
+            .iter()
+            .filter(|(name, spec)| {
+                spec.shard == "joint_head.safetensors"
+                    || (load_vision && name.starts_with("model.visual."))
+            })
+            .try_fold(0_u64, |total, (_, spec)| {
+                let elements = spec
+                    .shape
+                    .iter()
+                    .try_fold(1_u64, |count, dim| count.checked_mul(*dim as u64))
+                    .ok_or(Error::InsufficientMemory)?;
+                total
+                    .checked_add(elements.checked_mul(2).ok_or(Error::InsufficientMemory)?)
+                    .ok_or(Error::InsufficientMemory)
+            })
     }
     pub fn take(&mut self, name: &str, shape: &[usize]) -> Result<Tensor> {
         let tensor = self
@@ -195,9 +230,13 @@ mod tests {
 
 #[cfg(test)]
 impl Weights {
+    #[cfg(feature = "vision")]
     pub(crate) fn fixture(data: &[u8]) -> Result<Self> {
+        Self::fixture_on(data, &Device::Cpu)
+    }
+    pub(crate) fn fixture_on(data: &[u8], device: &Device) -> Result<Self> {
         Ok(Self {
-            tensors: candle_core::safetensors::load_buffer(data, &Device::Cpu)?,
+            tensors: candle_core::safetensors::load_buffer(data, device)?,
         })
     }
 }

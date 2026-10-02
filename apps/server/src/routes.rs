@@ -254,7 +254,7 @@ async fn models(
         .map(|(alias, model)| serde_json::json!({
             "id": alias, "revision": model.config.revision.as_str(),
             "profile": model.config.execution.name(), "modality": model.config.execution.modality,
-            "ready": model.client.is_ready(), "qualification": "flash-cpu-f32-v1",
+            "ready": model.client.is_ready(), "qualification": format!("flash-{:?}-{:?}-v1", model.config.execution.device, model.config.execution.dtype).to_ascii_lowercase(),
             "maxContextTokens": model.config.execution.max_context_tokens,
         })).collect();
     models.sort_by(|a, b| {
@@ -400,9 +400,19 @@ mod tests {
         let root =
             std::env::var_os("CLEF_RELEASE_CACHE").ok_or(clef_rs_core::Error::ArtifactMissing)?;
         let store = ArtifactStore::new(root.into(), 85_899_345_920)?;
+        let device = if std::env::var("CLEF_RELEASE_DEVICE").as_deref() == Ok("metal") {
+            DeviceKind::Metal
+        } else {
+            DeviceKind::Cpu
+        };
+        let dtype = if std::env::var("CLEF_RELEASE_DTYPE").as_deref() == Ok("f16") {
+            Precision::F16
+        } else {
+            Precision::F32
+        };
         let profile = ExecutionProfile::builder()
-            .device(DeviceKind::Cpu)
-            .dtype(Precision::F32)
+            .device(device)
+            .dtype(dtype)
             .modality(Modality::Text)
             .max_context_tokens(512)
             .device_budget_bytes(64 * 1024 * 1024 * 1024)

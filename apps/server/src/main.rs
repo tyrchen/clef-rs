@@ -316,7 +316,7 @@ async fn serve(mut settings: Settings, offline: bool) -> Result<()> {
         ingress: Arc::new(Semaphore::new(settings.runtime.ingress_capacity)),
         decision_timeout: Duration::from_millis(settings.runtime.decision_timeout_ms),
     };
-    tracing::info!(%address,"CLEF Flash CPU F32 server ready");
+    tracing::info!(%address,"CLEF Flash server ready");
     let (stopping, stopped) = tokio::sync::oneshot::channel();
     let server = axum::serve(
         limited,

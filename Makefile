@@ -2,8 +2,10 @@
 
 CARGO ?= cargo
 PYTHON ?= python3
-CLEF_BINARY ?= $(shell $(CARGO) metadata --no-deps --format-version=1 | $(PYTHON) -c 'import json,sys; print(json.load(sys.stdin)["target_directory"] + "/release/clef")')
+CLEF_TARGET_DIRECTORY ?= $(shell $(CARGO) metadata --no-deps --format-version=1 | $(PYTHON) -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')
+CLEF_BINARY ?= $(CLEF_TARGET_DIRECTORY)/release/clef
 CLEF_RELEASE_CACHE ?= $(HOME)/.cache/clef-rs
+MEDIA_FEATURES ?= vision
 CLEF_RELEASE_ORACLE ?= $(CURDIR)/crates/core/fixtures/release/flash-f32.json
 
 build:
@@ -43,9 +45,10 @@ verify-cuda:
 	@echo 'CUDA is not qualified for v1. A CUDA runner and separate BF16 full-model parity report are required.'
 	@exit 1
 
-verify-metal:
-	@echo 'Metal is not qualified for v1; requests fail explicitly.'
-	@exit 1
+verify-metal: native-jpeg verify-metal-operators
+	$(CARGO) build --workspace --features metal,vision
+	$(CARGO) test --workspace --features metal,vision
+	$(CARGO) clippy --workspace --all-targets --features metal,vision -- -D warnings -W clippy::pedantic
 
 reference-env:
 	uv venv .venv-reference --python 3.12
@@ -73,7 +76,7 @@ reference-extended:
 	$(PYTHON) tests/reference/qualify_flash.py --cache '$(CLEF_RELEASE_CACHE)' --output '$(CURDIR)/crates/core/fixtures/release/flash-extended-f32.json' --extended
 
 verify-media-release: native-jpeg
-	CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' CLEF_RELEASE_ORACLE='$(CURDIR)/crates/core/fixtures/release/flash-extended-f32.json' $(CARGO) test -p clef-rs-core --features vision test_should_match_full_flash_image_and_context_probabilities --release -- --ignored --nocapture
+	CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' CLEF_RELEASE_ORACLE='$(CURDIR)/crates/core/fixtures/release/flash-extended-f32.json' $(CARGO) test -p clef-rs-core --features $(MEDIA_FEATURES) test_should_match_full_flash_image_and_context_probabilities --release -- --ignored --nocapture
 
 verify-serving: native-jpeg
 	$(CARGO) build -p clef-rs-server --release --features vision
@@ -108,6 +111,50 @@ reference-jpeg:
 	$(PYTHON) tests/reference/qualify_flash.py --cache '$(CLEF_RELEASE_CACHE)' --output '$(CURDIR)/crates/core/fixtures/release/flash-jpeg-f32.json' --jpeg
 
 verify-jpeg-release: native-jpeg
-	CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' CLEF_RELEASE_ORACLE='$(CURDIR)/crates/core/fixtures/release/flash-jpeg-f32.json' $(CARGO) test -p clef-rs-core --features vision test_should_match_full_flash_jpeg_probabilities --release -- --ignored --nocapture
+	CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' CLEF_RELEASE_ORACLE='$(CURDIR)/crates/core/fixtures/release/flash-jpeg-f32.json' $(CARGO) test -p clef-rs-core --features $(MEDIA_FEATURES) test_should_match_full_flash_jpeg_probabilities --release -- --ignored --nocapture
 
 .PHONY: reference-jpeg verify-jpeg-release
+
+CLEF_BENCH_BINARY ?= $(CLEF_TARGET_DIRECTORY)/release/examples/benchmark
+BENCHMARK_CONFIG ?= $(CURDIR)/examples/clef.benchmark.yaml
+BENCHMARK_RESULTS ?= $(CURDIR)/docs/benchmarks/flash-cpu-metal
+BENCHMARK_THREADS ?= 8
+
+verify-metal-operators:
+	$(CARGO) test -p clef-rs-core --features metal models::metal_tests --release -- --ignored
+
+verify-metal-release:
+	CLEF_RELEASE_DEVICE=metal CLEF_RELEASE_DTYPE=f32 CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' CLEF_RELEASE_ORACLE='$(CLEF_RELEASE_ORACLE)' $(CARGO) test -p clef-rs-core --features metal test_should_match_full_flash_python_probabilities --release -- --ignored --nocapture
+	CLEF_RELEASE_DEVICE=metal CLEF_RELEASE_DTYPE=f16 CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' CLEF_RELEASE_ORACLE='$(CLEF_RELEASE_ORACLE)' $(CARGO) test -p clef-rs-core --features metal test_should_match_full_flash_python_probabilities --release -- --ignored --nocapture
+
+verify-metal-media: native-jpeg
+	CLEF_RELEASE_DEVICE=metal CLEF_RELEASE_DTYPE=f32 $(MAKE) verify-media-release verify-jpeg-release CARGO='$(CARGO)' MEDIA_FEATURES=metal,vision CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)'
+	CLEF_RELEASE_DEVICE=metal CLEF_RELEASE_DTYPE=f16 $(MAKE) verify-media-release verify-jpeg-release CARGO='$(CARGO)' MEDIA_FEATURES=metal,vision CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)'
+
+verify-metal-serving: native-jpeg
+	CLEF_RELEASE_DEVICE=metal CLEF_RELEASE_DTYPE=f32 CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' $(CARGO) test -p clef-rs-server --features metal,vision test_should_match_embedded_decisions_over_authenticated_http --release -- --ignored --nocapture
+	CLEF_RELEASE_DEVICE=metal CLEF_RELEASE_DTYPE=f16 CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' $(CARGO) test -p clef-rs-server --features metal,vision test_should_match_embedded_decisions_over_authenticated_http --release -- --ignored --nocapture
+	$(CARGO) build -p clef-rs-server --release --features metal,vision
+	$(PYTHON) tests/reference/serve_smoke.py --binary '$(CLEF_BINARY)' --cache '$(CLEF_RELEASE_CACHE)' --device metal --dtype f32
+	$(PYTHON) tests/reference/serve_smoke.py --binary '$(CLEF_BINARY)' --cache '$(CLEF_RELEASE_CACHE)' --device metal --dtype f16
+
+verify-benchmark:
+	$(CARGO) test -p clef-rs-core --example benchmark
+
+bench-domain:
+	$(CARGO) bench -p clef-rs-core --bench domain
+	$(PYTHON) tests/performance/domain_report.py --target '$(CLEF_TARGET_DIRECTORY)' --output '$(BENCHMARK_RESULTS)'
+
+bench-inference:
+	$(CARGO) build -p clef-rs-core --example benchmark --release --features metal
+	$(PYTHON) tests/performance/run.py --binary '$(CLEF_BENCH_BINARY)' --cache '$(CLEF_RELEASE_CACHE)' --config '$(BENCHMARK_CONFIG)' --output '$(BENCHMARK_RESULTS)' --threads '$(BENCHMARK_THREADS)'
+
+bench-cpu:
+	$(CARGO) build -p clef-rs-core --example benchmark --release
+	$(PYTHON) tests/performance/run.py --binary '$(CLEF_BENCH_BINARY)' --cache '$(CLEF_RELEASE_CACHE)' --config '$(BENCHMARK_CONFIG)' --output '$(BENCHMARK_RESULTS)' --threads '$(BENCHMARK_THREADS)' --profiles cpu:f32
+
+bench-metal:
+	$(CARGO) build -p clef-rs-core --example benchmark --release --features metal
+	$(PYTHON) tests/performance/run.py --binary '$(CLEF_BENCH_BINARY)' --cache '$(CLEF_RELEASE_CACHE)' --config '$(BENCHMARK_CONFIG)' --output '$(BENCHMARK_RESULTS)' --threads '$(BENCHMARK_THREADS)' --profiles metal:f32 metal:f16
+
+.PHONY: verify-metal-operators verify-metal-release verify-metal-media verify-metal-serving verify-benchmark bench-domain bench-inference bench-cpu bench-metal

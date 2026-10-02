@@ -17,7 +17,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use clef_rs_core::{
-    runtime::{ExecutionProfile, RuntimeConfig},
+    runtime::{DeviceKind, ExecutionProfile, RuntimeConfig},
     types::{CommitRevision, Identifier, ModelPreset},
 };
 use config::{Config, File, FileFormat};
@@ -136,6 +136,17 @@ impl Settings {
             {
                 bail!("distinct execution profiles on one device require a combined capacity plan");
             }
+        }
+        if devices.len() > 1
+            && self
+                .models
+                .iter()
+                .any(|model| model.execution.device == DeviceKind::Metal)
+        {
+            bail!(
+                "distinct CPU/Metal device profiles share physical RAM; use separate processes \
+                 until a combined capacity plan is configured"
+            );
         }
         self.runtime.validate()?;
         if self.http.max_body_bytes == 0
@@ -309,6 +320,22 @@ mod tests {
         alias.execution.device_budget_bytes = 1;
         settings.models.push(alias);
         assert!(settings.validate().is_err());
+        Ok(())
+    }
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    #[test]
+    fn test_should_reject_combining_cpu_and_metal_unified_memory_budgets() -> Result<()> {
+        let mut settings = Settings::load(Path::new("../../examples/clef.cpu.yaml"))?;
+        let mut metal = settings.models.first().context("example model")?.clone();
+        metal.alias = "metal-alias".into();
+        metal.execution.device = DeviceKind::Metal;
+        settings.models.push(metal);
+        let error = settings
+            .validate()
+            .err()
+            .context("combined plan must fail")?;
+        assert!(error.to_string().contains("share physical RAM"));
+        Settings::load(Path::new("../../examples/clef.metal.yaml"))?;
         Ok(())
     }
 }

@@ -61,12 +61,16 @@ mod tests {
     }
     #[test]
     fn test_should_match_pinned_transformers_hybrid_backbone() -> Result<()> {
+        backbone_parity(&Device::Cpu)
+    }
+    pub(super) fn backbone_parity(device: &Device) -> Result<()> {
         let config: qwen::TextConfig = serde_json::from_slice(include_bytes!(
             "../../fixtures/synthetic/backbone-config.json"
         ))?;
-        let mut weights = weights::Weights::fixture(include_bytes!(
-            "../../fixtures/synthetic/backbone.safetensors"
-        ))?;
+        let mut weights = weights::Weights::fixture_on(
+            include_bytes!("../../fixtures/synthetic/backbone.safetensors"),
+            device,
+        )?;
         let backbone = qwen::Backbone::load(&mut weights, config)?;
         weights.finish()?;
         let ids: Vec<u32> = (0..20).collect();
@@ -82,15 +86,20 @@ mod tests {
     }
     #[test]
     fn test_should_match_pinned_joint_head_all_question_types() -> Result<()> {
+        head_parity(&Device::Cpu)
+    }
+    pub(super) fn head_parity(device: &Device) -> Result<()> {
         let config: head::HeadConfig =
             serde_json::from_slice(include_bytes!("../../fixtures/synthetic/head-config.json"))?;
-        let mut weights =
-            weights::Weights::fixture(include_bytes!("../../fixtures/synthetic/head.safetensors"))?;
+        let mut weights = weights::Weights::fixture_on(
+            include_bytes!("../../fixtures/synthetic/head.safetensors"),
+            device,
+        )?;
         let head = head::Head::load(&mut weights, &config)?;
         weights.finish()?;
         let input = candle_core::safetensors::load_buffer(
             include_bytes!("../../fixtures/synthetic/head-input.safetensors"),
-            &Device::Cpu,
+            device,
         )?;
         let span = |s, e| TokenSpan::new(s, e, 20);
         let questions = vec![
@@ -138,5 +147,24 @@ mod tests {
             )?;
         }
         Ok(())
+    }
+}
+
+#[cfg(all(test, feature = "metal", target_os = "macos"))]
+mod metal_tests {
+    use candle_core::Device;
+
+    use super::tests::{backbone_parity, head_parity};
+    use crate::Result;
+
+    #[test]
+    #[ignore = "requires a real Apple Metal device"]
+    fn test_should_match_hybrid_backbone_on_metal() -> Result<()> {
+        backbone_parity(&Device::new_metal(0)?)
+    }
+    #[test]
+    #[ignore = "requires a real Apple Metal device"]
+    fn test_should_match_joint_head_on_metal() -> Result<()> {
+        head_parity(&Device::new_metal(0)?)
     }
 }

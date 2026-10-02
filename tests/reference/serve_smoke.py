@@ -39,6 +39,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--cache", type=Path, required=True)
+    parser.add_argument("--device", choices=["cpu","metal"], default="cpu")
+    parser.add_argument("--dtype", choices=["f32","f16"], default="f32")
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="clef-serving-") as directory:
         directory = Path(directory)
@@ -48,7 +50,7 @@ def main():
         settings = yaml.safe_load((ROOT / "examples/clef.cpu.yaml").read_text())
         settings["cache"]["root"] = str(args.cache.resolve())
         settings["http"].update(bind=f"127.0.0.1:{port}", maxBodyBytes=16*1024*1024)
-        settings["models"][0]["execution"]["modality"] = "image"
+        settings["models"][0]["execution"].update(modality="image",device=args.device,dtype=args.dtype)
         settings["runtime"]["maxPayloadBytes"] = 512*1024*1024
         jwks = directory / "jwks.json"
         jwks.write_text(json.dumps({"keys":[{"kty":"RSA", "alg":"RS256", "use":"sig", "kid":"test-key", "n":PUBLIC_MODULUS, "e":"AQAB"}]}))
@@ -86,7 +88,7 @@ def main():
                 assert status == 200
                 advertised = json.loads(body)["data"]
                 assert len(advertised) == 1
-                assert advertised[0]["qualification"] == "flash-cpu-f32-v1"
+                assert advertised[0]["qualification"] == f"flash-{args.device}-{args.dtype}-v1"
                 assert advertised[0]["modality"] == "image"
                 records = [
                     json.loads((ROOT / "crates/core/fixtures/release/flash-extended-f32.json").read_text())["records"][1],
@@ -101,11 +103,12 @@ def main():
                     assert headers["x-clef-revision"] == "17f0b0ad64efb65d273590632833508766b2aae6"
                     for key,value in answer["answers"].items():
                         expected = record["probabilities"][key]
+                        wire_tolerance = .000101 if args.dtype == "f32" else .0011
                         if value["type"] == "noul":
-                            assert abs(value["noul"]-expected["true"]) <= .000101
+                            assert abs(value["noul"]-expected["true"]) <= wire_tolerance
                         else:
                             for option,probability in value["probabilities"].items():
-                                assert abs(probability-expected[option]) <= .000101
+                                assert abs(probability-expected[option]) <= wire_tolerance
                 assert request("GET","/metrics")[0] == 200
                 process.send_signal(signal.SIGTERM)
                 assert process.wait(timeout=35) == 0,(directory / "server.log").read_text()

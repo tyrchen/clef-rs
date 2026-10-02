@@ -152,7 +152,8 @@ impl Head {
         control: &Control,
     ) -> Result<Vec<Vec<f32>>> {
         control.check()?;
-        let normalized = self.hidden_norm.forward(hidden)?;
+        let hidden = hidden.to_dtype(self.hidden_norm.weight.dtype())?;
+        let normalized = self.hidden_norm.forward(&hidden)?;
         let memory = self.memory.forward(&normalized)?;
         let global = normalized.narrow(0, record.ids.len() - 1, 1)?;
         let questions: Vec<Tensor> = record
@@ -177,7 +178,10 @@ impl Head {
                 .iter()
                 .map(|span| {
                     let ids = input_ids.narrow(0, span.start(), span.len())?;
-                    Ok(output_embeddings.index_select(&ids, 0)?.mean_keepdim(0)?)
+                    Ok(output_embeddings
+                        .index_select(&ids, 0)?
+                        .to_dtype(hidden.dtype())?
+                        .mean_keepdim(0)?)
                 })
                 .collect::<Result<_>>()?;
             let lex = Tensor::cat(&lex, 0)?;

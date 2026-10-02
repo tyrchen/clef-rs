@@ -22,6 +22,12 @@ jobs:
           rustup toolchain install nightly --profile minimal --component rustfmt
       - name: Build and verify CPU, offline, and image operators
         run: make verify-cpu verify-artifacts
+      - name: Compile and test Metal feature on macOS
+        if: runner.os == 'macOS'
+        run: |
+          cargo build --workspace --features metal,vision
+          cargo test --workspace --features metal,vision
+          cargo clippy --workspace --all-targets --features metal,vision -- -D warnings -W clippy::pedantic
   supply-chain:
     runs-on: ubuntu-latest
     steps:

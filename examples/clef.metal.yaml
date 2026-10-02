@@ -1,0 +1,50 @@
+# Apple Silicon: compile with --features metal. F16 projections use F32 sensitive operations.
+schemaVersion: 1
+cache:
+  root: ./model-cache
+  offline: true
+  maxBytes: 85899345920
+models:
+  - alias: clef-flash
+    preset: clef-flash
+    revision: 17f0b0ad64efb65d273590632833508766b2aae6
+    required: true
+    execution:
+      device: metal
+      ordinal: 0
+      dtype: f16
+      modality: text
+      maxContextTokens: 4096
+      deviceBudgetBytes: 68719476736
+      hostBudgetBytes: 68719476736
+runtime:
+  workersPerModel: 1
+  ingressCapacity: 8
+  queueCapacity: 8
+  maxQueuedTokens: 32768
+  maxPayloadBytes: 8388608
+  preparationWorkers: 2
+  maxBatchSize: 1
+  queueTimeoutMs: 5000
+  decisionTimeoutMs: 300000
+  shutdownGraceMs: 30000
+  memoryReservePercent: 20
+  truncation: reject
+http:
+  bind: 127.0.0.1:8080
+  maxBodyBytes: 1048576
+  requestReadTimeoutMs: 10000
+  rateLimitPerPrincipalPerMinute: 60
+  authenticatedTlsIngress: false
+  maxConnections: 128
+# Supply public signing keys and the exact issuer/audience of your OIDC provider.
+auth:
+  mode: oidc
+  issuer: https://issuer.example
+  audience: clef-rs
+  jwksFile: ./jwks.json
+  keysValidUntilUnixSeconds: 1893456000
+  allowedAlgorithms: [RS256]
+  requiredScope: clef:decide
+  observationScope: clef:observe
+  accessTokenType: at+jwt

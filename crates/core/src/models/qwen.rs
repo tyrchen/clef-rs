@@ -239,19 +239,24 @@ impl Backbone {
         positions: &[[usize; 3]],
         control: &Control,
     ) -> Result<Tensor> {
+        // Preserve residual additions in F32 while the large projection weights
+        // and their matrix multiplications use the selected profile precision.
+        hidden = hidden.to_dtype(DType::F32)?;
         for layer in &self.layers {
             control.check()?;
-            let input = rms(&hidden, &layer.input_norm, self.config.rms_norm_eps, true)?;
+            let input = rms(&hidden, &layer.input_norm, self.config.rms_norm_eps, true)?
+                .to_dtype(layer.gate.weight().dtype())?;
             let mixed = match &layer.mixer {
                 Mixer::Full(a) => a.forward(&input, &self.config, positions, control)?,
                 Mixer::Linear(a) => a.forward(&input, &self.config, control)?,
             };
-            hidden = (hidden + mixed)?;
-            let norm = rms(&hidden, &layer.post_norm, self.config.rms_norm_eps, true)?;
+            hidden = (hidden + mixed.to_dtype(DType::F32)?)?;
+            let norm = rms(&hidden, &layer.post_norm, self.config.rms_norm_eps, true)?
+                .to_dtype(layer.gate.weight().dtype())?;
             let ff = layer
                 .down
                 .forward(&(silu(&layer.gate.forward(&norm)?)? * layer.up.forward(&norm)?)?)?;
-            hidden = (hidden + ff)?;
+            hidden = (hidden + ff.to_dtype(DType::F32)?)?;
         }
         rms(&hidden, &self.norm, self.config.rms_norm_eps, true)
     }
@@ -331,21 +336,25 @@ impl Delta {
         let key = c.linear_num_key_heads * kd;
         let value = heads * vd;
         let width = 2 * key + value;
-        let projected = self.qkv.forward(x)?;
+        let projected = self.qkv.forward(x)?.to_dtype(DType::F32)?;
         // Explicit causal depthwise convolution: oldest kernel tap sees t-(K-1).
-        let mut convolved = Tensor::zeros((t, width), x.dtype(), x.device())?;
+        let mut convolved = Tensor::zeros((t, width), DType::F32, x.device())?;
         for tap in 0..c.linear_conv_kernel_dim {
             let delay = c.linear_conv_kernel_dim - 1 - tap;
             if delay >= t {
                 continue;
             }
-            let weight = self.conv.narrow(2, tap, 1)?.reshape((1, width))?;
+            let weight = self
+                .conv
+                .narrow(2, tap, 1)?
+                .reshape((1, width))?
+                .to_dtype(DType::F32)?;
             let part = projected.narrow(0, 0, t - delay)?.broadcast_mul(&weight)?;
             let part = if delay == 0 {
                 part
             } else {
                 Tensor::cat(
-                    &[Tensor::zeros((delay, width), x.dtype(), x.device())?, part],
+                    &[Tensor::zeros((delay, width), DType::F32, x.device())?, part],
                     0,
                 )?
             };
@@ -373,7 +382,7 @@ impl Delta {
         // Stable softplus, preserving the reference's float32 decay path.
         let softplus = (a.clamp(0., f64::INFINITY)? + ((a.abs()?.neg()?.exp()? + 1.)?.log()?))?;
         let g = softplus.broadcast_mul(&self.a_log.to_dtype(DType::F32)?.exp()?.neg()?)?;
-        let beta = sigmoid(&self.b.forward(x)?)?;
+        let beta = sigmoid(&self.b.forward(x)?.to_dtype(DType::F32)?)?;
         let out = delta_recurrence(&q, &k, &v, &g, &beta, control)?.to_dtype(x.dtype())?;
         let z = self.z.forward(x)?.reshape((t, heads, vd))?;
         let gated = (rms(&out, &self.norm, c.rms_norm_eps, false)?.to_dtype(DType::F32)?
@@ -397,9 +406,9 @@ pub(crate) fn delta_recurrence(
     }
     let (t, heads, kd) = q.dims3()?;
     let vd = v.dim(2)?;
-    // Normalize in input precision, then promote recurrence and state to F32.
-    let q = (l2(q)?.to_dtype(DType::F32)? / (kd as f64).sqrt())?;
-    let k = l2(k)?.to_dtype(DType::F32)?;
+    // Normalize and accumulate in F32, including the mixed F16 profile.
+    let q = (l2(&q.to_dtype(DType::F32)?)? / (kd as f64).sqrt())?;
+    let k = l2(&k.to_dtype(DType::F32)?)?;
     let v = v.to_dtype(DType::F32)?;
     let beta = beta.to_dtype(DType::F32)?;
     let g = g.to_dtype(DType::F32)?;

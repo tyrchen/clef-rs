@@ -9,9 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-#[cfg(feature = "vision")]
-use candle_core::Tensor;
-use candle_core::{DType, Device};
+use candle_core::{DType, Device, Tensor};
 use serde::{Deserialize, Serialize};
 use tokio::{
     sync::{OwnedSemaphorePermit, Semaphore, mpsc, oneshot, watch},
@@ -50,18 +48,18 @@ pub enum DeviceKind {
     Cpu,
     /// CUDA with an explicit device ordinal.
     Cuda,
-    /// Metal is separately qualified.
+    /// Apple Metal execution, gated by the `metal` feature.
     Metal,
 }
 /// Execution precision.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum Precision {
-    /// Float32 CPU reference.
+    /// Float32 CPU reference or Metal execution.
     F32,
     /// `BFloat16` CUDA execution.
     Bf16,
-    /// Float16 Metal execution.
+    /// Float16 Metal projections with F32 head, vision and sensitive accumulation.
     F16,
 }
 /// Modality requires a separate qualification contract.
@@ -114,6 +112,11 @@ impl ExecutionProfile {
         }
         match (self.device, self.dtype) {
             (DeviceKind::Cpu, Precision::F32) if self.ordinal == 0 => Ok(()),
+            (DeviceKind::Metal, Precision::F32 | Precision::F16)
+                if cfg!(all(feature = "metal", target_os = "macos")) && self.ordinal < 8 =>
+            {
+                Ok(())
+            }
             _ => Err(Error::UnsupportedCapability(
                 "device/dtype combination is unavailable or unqualified".into(),
             )),
@@ -123,9 +126,7 @@ impl ExecutionProfile {
         match self.device {
             DeviceKind::Cpu => Ok(Device::Cpu),
             DeviceKind::Cuda => Ok(Device::new_cuda(self.ordinal)?),
-            DeviceKind::Metal => Err(Error::UnsupportedCapability(
-                "Metal is not qualified".into(),
-            )),
+            DeviceKind::Metal => Ok(Device::new_metal(self.ordinal)?),
         }
     }
     fn dtype(&self) -> DType {
@@ -154,6 +155,60 @@ pub struct MemoryPlan {
     pub host_bytes: u64,
     /// Required peak device bytes.
     pub device_bytes: u64,
+}
+/// Synchronized stage measurements; additional barriers make this diagnostic mode
+/// different from normal inference. Use normal calls for latency/throughput measurements.
+#[derive(Debug, Clone, Copy, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[non_exhaustive]
+pub struct ExecutionTimings {
+    /// Tokenization and optional image patch preparation.
+    pub encoding_ms: f64,
+    /// Backbone and optional vision, including their diagnostic GPU barrier.
+    pub backbone_ms: f64,
+    /// Learned joint head and its diagnostic GPU barrier/readback.
+    pub head_ms: f64,
+    /// Typed answer conversion and provenance construction.
+    pub conversion_ms: f64,
+    /// Final device synchronization.
+    pub synchronization_ms: f64,
+    /// Entire diagnostic call, including preparation.
+    pub total_ms: f64,
+}
+/// Metal allocator snapshot; counts include reusable buffers, not just live tensors.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[non_exhaustive]
+pub struct DeviceMemory {
+    /// Metal's current allocated GPU bytes.
+    pub allocated_bytes: u64,
+    /// OS-recommended GPU working set; unified RAM also has host consumers.
+    pub recommended_bytes: u64,
+    /// GPU architecture reported by Metal.
+    pub architecture: String,
+}
+/// Read-only allocator observation handle. It owns no model tensors and never
+/// submits work; a benchmark can sample it while the device owner executes.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct MemoryProbe {
+    #[cfg(feature = "metal")]
+    device: Device,
+}
+impl MemoryProbe {
+    /// Read Metal allocation accounting. CPU has no separate device allocator.
+    #[must_use]
+    pub fn snapshot(&self) -> Option<DeviceMemory> {
+        #[cfg(feature = "metal")]
+        if let Device::Metal(metal) = &self.device {
+            return Some(DeviceMemory {
+                allocated_bytes: metal.device().current_allocated_size() as u64,
+                recommended_bytes: metal.device().recommended_max_working_set_size() as u64,
+                architecture: metal.device().architecture_name(),
+            });
+        }
+        None
+    }
 }
 /// Direct engine owns every model tensor on its caller's thread.
 #[derive(Debug)]
@@ -203,16 +258,23 @@ impl DirectEngine {
         } else {
             2
         };
+        let precision_extra = if profile.dtype == Precision::F16 {
+            Weights::f32_promotion_bytes(profile.modality == Modality::Image)?
+        } else {
+            0
+        };
         let weights = payload
             .checked_mul(scalar)
             .and_then(|n| n.checked_div(2))
+            .and_then(|n| n.checked_add(precision_extra))
             .ok_or(Error::InsufficientMemory)?;
         let t = profile.max_context_tokens as u64;
         let h = c.hidden_size as u64;
-        // Includes live hidden states, Q/K/V/gates, FFN intermediates and head evidence.
+        // Mixed F16 retains F32 residuals/accumulators; conservatively budget all
+        // live hidden states, Q/K/V/gates, FFN intermediates and head evidence as F32.
         let activations = t
             .checked_mul(h)
-            .and_then(|n| n.checked_mul(scalar * 32))
+            .and_then(|n| n.checked_mul(4 * 32))
             .ok_or(Error::InsufficientMemory)?;
         let attention = (c.num_attention_heads as u64)
             .checked_mul(128 * 256 * 4 * 4)
@@ -240,11 +302,16 @@ impl DirectEngine {
                 .checked_add(scratch)
                 .ok_or(Error::InsufficientMemory)?,
         )?;
-        let host_bytes = if profile.device == DeviceKind::Cpu {
+        // Metal allocations share physical RAM with shard staging on Apple Silicon.
+        let host_bytes = if matches!(profile.device, DeviceKind::Cpu | DeviceKind::Metal) {
             reserve(
                 weights
                     .checked_add(scratch)
-                    .and_then(|n| n.checked_add(largest * 2))
+                    .and_then(|n| {
+                        largest
+                            .checked_mul(2)
+                            .and_then(|stage| n.checked_add(stage))
+                    })
                     .ok_or(Error::InsufficientMemory)?,
             )?
         } else {
@@ -282,6 +349,12 @@ impl DirectEngine {
         head_config.validate(config.text_config.hidden_size)?;
         let encoder = Encoder::load(&snapshot.file("tokenizer.json")?)?;
         let device = profile.device()?;
+        #[cfg(feature = "metal")]
+        if let Device::Metal(metal) = &device
+            && plan.device_bytes > metal.device().recommended_max_working_set_size() as u64
+        {
+            return Err(Error::InsufficientMemory);
+        }
         let mut weights = Weights::load(
             &snapshot,
             &device,
@@ -322,6 +395,52 @@ impl DirectEngine {
     /// # Errors
     /// Returns validation, deadline or inference errors. Kernel interruption is cooperative.
     pub fn decide(&mut self, request: &DecisionRequest) -> Result<DecisionResult> {
+        let (encoded, control) = self.prepare_record(request)?;
+        self.execute(request, &encoded, &control)
+    }
+    /// Measure preparation, backbone, head, conversion and synchronization separately.
+    /// Diagnostic barriers are included in the reported stages.
+    ///
+    /// # Errors
+    /// Returns the same validation, cancellation and device errors as [`Self::decide`].
+    ///
+    /// ```no_run
+    /// # use clef_rs_core::{Result, runtime::DirectEngine, types::DecisionRequest};
+    /// # fn inspect(engine: &mut DirectEngine, request: &DecisionRequest) -> Result<()> {
+    /// let (answer, timings) = engine.decide_profiled(request)?;
+    /// assert_eq!(answer.answers.len(), request.questions().len());
+    /// assert!(timings.total_ms >= timings.encoding_ms);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn decide_profiled(
+        &mut self,
+        request: &DecisionRequest,
+    ) -> Result<(DecisionResult, ExecutionTimings)> {
+        let start = Instant::now();
+        let (encoded, control) = self.prepare_record(request)?;
+        let mut timings = ExecutionTimings {
+            encoding_ms: start.elapsed().as_secs_f64() * 1000.,
+            ..ExecutionTimings::default()
+        };
+        let result = self.execute_measured(request, &encoded, &control, Some(&mut timings))?;
+        timings.total_ms = start.elapsed().as_secs_f64() * 1000.;
+        Ok((result, timings))
+    }
+    /// Snapshot Metal memory accounting; CPU has no separate device allocator.
+    #[must_use]
+    pub fn device_memory(&self) -> Option<DeviceMemory> {
+        self.memory_probe().snapshot()
+    }
+    /// Obtain a metadata-only handle for concurrent allocator sampling.
+    #[must_use]
+    pub fn memory_probe(&self) -> MemoryProbe {
+        MemoryProbe {
+            #[cfg(feature = "metal")]
+            device: self.device.clone(),
+        }
+    }
+    fn prepare_record(&self, request: &DecisionRequest) -> Result<(EncodedRecord, Control)> {
         #[cfg(feature = "vision")]
         if self.profile.modality == Modality::Text && !request.images.is_empty() {
             return Err(Error::UnsupportedCapability(
@@ -338,7 +457,7 @@ impl DirectEngine {
             self.truncation,
             None,
         )?;
-        self.execute(request, &encoded, &control)
+        Ok((encoded, control))
     }
     fn execute(
         &mut self,
@@ -346,56 +465,90 @@ impl DirectEngine {
         encoded: &EncodedRecord,
         control: &Control,
     ) -> Result<DecisionResult> {
+        self.execute_measured(request, encoded, control, None)
+    }
+    fn execute_measured(
+        &mut self,
+        request: &DecisionRequest,
+        encoded: &EncodedRecord,
+        control: &Control,
+        mut timings: Option<&mut ExecutionTimings>,
+    ) -> Result<DecisionResult> {
         let result = (|| {
             control.check()?;
-            #[cfg(feature = "vision")]
-            let hidden = if encoded.images.is_empty() {
-                self.backbone.forward(&encoded.ids, control)?
-            } else {
-                let vision = self.vision.as_ref().ok_or_else(|| {
-                    Error::UnsupportedCapability("text worker does not accept images".into())
-                })?;
-                let embeddings = self.backbone.embeddings(&encoded.ids)?;
-                let mut pieces = Vec::new();
-                let mut offset = 0;
-                for (image, span) in encoded.images.iter().zip(&encoded.media_spans) {
-                    if span.start() > offset {
-                        pieces.push(embeddings.narrow(0, offset, span.start() - offset)?);
-                    }
-                    let visual = vision.forward(image, control)?;
-                    if visual.dim(0)? != span.len() {
-                        return Err(Error::InferenceFailed("visual embedding count".into()));
-                    }
-                    pieces.push(visual);
-                    offset = span.end();
-                }
-                if offset < encoded.ids.len() {
-                    pieces.push(embeddings.narrow(0, offset, encoded.ids.len() - offset)?);
-                }
-                self.backbone.forward_embedded(
-                    Tensor::cat(&pieces, 0)?,
-                    &encoded.positions,
-                    control,
-                )?
-            };
-            #[cfg(not(feature = "vision"))]
-            let hidden = self.backbone.forward(&encoded.ids, control)?;
+            let started = Instant::now();
+            let hidden = self.forward_hidden(encoded, control)?;
+            if let Some(timings) = timings.as_deref_mut() {
+                self.device.synchronize()?;
+                timings.backbone_ms = started.elapsed().as_secs_f64() * 1000.;
+            }
+            let started = Instant::now();
             let logits =
                 self.head
                     .forward(&hidden, &self.backbone.output_embeddings, encoded, control)?;
+            if let Some(timings) = timings.as_deref_mut() {
+                self.device.synchronize()?;
+                timings.head_ms = started.elapsed().as_secs_f64() * 1000.;
+            }
+            let started = Instant::now();
             let answers = answers(request, &logits)?;
-            Ok(DecisionResult {
+            let result = DecisionResult {
                 answers,
                 input_tokens: encoded.ids.len(),
                 truncated_state_tokens: encoded.truncated,
                 revision: self.snapshot.manifest().revision.as_str().into(),
                 manifest_digest: self.snapshot.digest().into(),
                 execution_profile: self.profile.name(),
-            })
+            };
+            if let Some(timings) = timings.as_deref_mut() {
+                timings.conversion_ms = started.elapsed().as_secs_f64() * 1000.;
+            }
+            Ok(result)
         })();
         // Synchronize even after cooperative cancellation before reservations can drop.
+        let started = Instant::now();
         self.device.synchronize()?;
+        if let Some(timings) = timings {
+            timings.synchronization_ms = started.elapsed().as_secs_f64() * 1000.;
+        }
         result
+    }
+    fn forward_hidden(&self, encoded: &EncodedRecord, control: &Control) -> Result<Tensor> {
+        #[cfg(feature = "vision")]
+        let hidden = if encoded.images.is_empty() {
+            self.backbone.forward(&encoded.ids, control)?
+        } else {
+            let vision = self.vision.as_ref().ok_or_else(|| {
+                Error::UnsupportedCapability("text worker does not accept images".into())
+            })?;
+            let embeddings = self
+                .backbone
+                .embeddings(&encoded.ids)?
+                .to_dtype(DType::F32)?;
+            let mut pieces = Vec::new();
+            let mut offset = 0;
+            for (image, span) in encoded.images.iter().zip(&encoded.media_spans) {
+                if span.start() > offset {
+                    pieces.push(embeddings.narrow(0, offset, span.start() - offset)?);
+                }
+                let visual = vision
+                    .forward(image, control)?
+                    .to_dtype(embeddings.dtype())?;
+                if visual.dim(0)? != span.len() {
+                    return Err(Error::InferenceFailed("visual embedding count".into()));
+                }
+                pieces.push(visual);
+                offset = span.end();
+            }
+            if offset < encoded.ids.len() {
+                pieces.push(embeddings.narrow(0, offset, encoded.ids.len() - offset)?);
+            }
+            self.backbone
+                .forward_embedded(Tensor::cat(&pieces, 0)?, &encoded.positions, control)?
+        };
+        #[cfg(not(feature = "vision"))]
+        let hidden = self.backbone.forward(&encoded.ids, control)?;
+        Ok(hidden)
     }
     fn warmup(&mut self) -> Result<()> {
         let request = warmup_request()?;
@@ -865,12 +1018,16 @@ fn worker_loop(
             record,
             control,
         ));
-        if let Ok(result) = execution {
+        if let Ok(result) = execution
+            && !matches!(result, Err(Error::Tensor(_)))
+        {
             let _ = reply.send(result);
             let _ = events.blocking_send(true);
         } else {
             let _ = reply.send(Err(Error::WorkerUnavailable));
-            tracing::warn!("device worker panicked; active decision failed without replay");
+            tracing::warn!(
+                "device worker failed or panicked; active decision failed without replay"
+            );
             drop(engine);
             let recovered = recover_worker(&state, || {
                 let now = Instant::now();
@@ -1033,11 +1190,40 @@ mod tests {
         assert!(
             ExecutionProfile {
                 dtype: Precision::Bf16,
-                ..profile
+                ..profile.clone()
             }
             .validate()
             .is_err()
         );
+        for (device, dtype, ordinal) in [
+            (DeviceKind::Cpu, Precision::F16, 0),
+            (DeviceKind::Cpu, Precision::F32, 1),
+            (DeviceKind::Cuda, Precision::Bf16, 0),
+            (DeviceKind::Metal, Precision::Bf16, 0),
+            (DeviceKind::Metal, Precision::F16, 8),
+        ] {
+            assert!(
+                ExecutionProfile {
+                    device,
+                    ordinal,
+                    dtype,
+                    ..profile.clone()
+                }
+                .validate()
+                .is_err()
+            );
+        }
+        for dtype in [Precision::F32, Precision::F16] {
+            let metal = ExecutionProfile {
+                device: DeviceKind::Metal,
+                dtype,
+                ..profile.clone()
+            };
+            assert_eq!(
+                metal.validate().is_ok(),
+                cfg!(all(feature = "metal", target_os = "macos"))
+            );
+        }
         assert!("../../model".parse::<crate::types::Identifier>().is_err());
         Ok(())
     }
@@ -1074,14 +1260,7 @@ mod release_tests {
         let data: serde_json::Value = serde_json::from_slice(&std::fs::read(oracle)?)?;
         let store = ArtifactStore::new(root.into(), 85_899_345_920)?;
         let snapshot = store.open(ModelPreset::ClefFlash).await?;
-        let profile = ExecutionProfile::builder()
-            .device(DeviceKind::Cpu)
-            .dtype(Precision::F32)
-            .modality(modality)
-            .max_context_tokens(4096)
-            .device_budget_bytes(64 * 1024 * 1024 * 1024)
-            .host_budget_bytes(64 * 1024 * 1024 * 1024)
-            .build();
+        let profile = release_profile(modality)?;
         task::spawn_blocking(move || {
             let mut engine = DirectEngine::load(snapshot, profile)?;
             let records = data
@@ -1100,6 +1279,14 @@ mod release_tests {
                 let bytes = serde_json::to_vec(&record["request"])?;
                 let request = DecisionRequest::from_json(&bytes)?;
                 let actual = engine.decide(&request)?;
+                if index == 0 {
+                    let (profiled, timings) = engine.decide_profiled(&request)?;
+                    assert_eq!(
+                        actual.systemone("clef-flash")?,
+                        profiled.systemone("clef-flash")?
+                    );
+                    assert!(timings.total_ms >= timings.backbone_ms + timings.head_ms);
+                }
                 assert_eq!(
                     Some(actual.input_tokens as u64),
                     record["inputTokens"].as_u64()
@@ -1143,12 +1330,33 @@ mod release_tests {
             let mean = total / f64::from(count);
             assert!(mean <= 1e-4, "mean error {mean}");
             eprintln!(
-                "Flash F32 qualification: {count} probabilities, maximum={maximum}, mean={mean}"
+                "Flash {} qualification: {count} probabilities, maximum={maximum}, mean={mean}",
+                engine.profile.name()
             );
             Ok(())
         })
         .await
         .map_err(|_| Error::WorkerUnavailable)?
+    }
+    fn release_profile(modality: Modality) -> Result<ExecutionProfile> {
+        let device = match std::env::var("CLEF_RELEASE_DEVICE").as_deref() {
+            Ok("metal") => DeviceKind::Metal,
+            Ok("cpu") | Err(_) => DeviceKind::Cpu,
+            _ => return Err(Error::InvalidRequest("release device".into())),
+        };
+        let precision = match std::env::var("CLEF_RELEASE_DTYPE").as_deref() {
+            Ok("f16") => Precision::F16,
+            Ok("f32") | Err(_) => Precision::F32,
+            _ => return Err(Error::InvalidRequest("release dtype".into())),
+        };
+        Ok(ExecutionProfile::builder()
+            .device(device)
+            .dtype(precision)
+            .modality(modality)
+            .max_context_tokens(4096)
+            .device_budget_bytes(64 * 1024 * 1024 * 1024)
+            .host_budget_bytes(64 * 1024 * 1024 * 1024)
+            .build())
     }
     #[tokio::test]
     #[ignore = "requires complete pinned weights and a large-memory runner"]
