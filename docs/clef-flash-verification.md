@@ -48,17 +48,21 @@ JPEG RGB output matches Pillow exactly on the checked pixel fixture. Other teste
 
 ## Resource and lifecycle evidence
 
-For text at 4,096 tokens, `plan-memory` reported 60,319,553,990 host bytes and 48,348,934,963 device/accounted execution bytes, including safe shard staging and a 20% reserve. Images add a 1 GiB allowance. Both budgets must pass before model allocation; these estimates are conservative admission policy, not a physical-memory reservation.
+For CPU F32 text at 4,096 tokens, `plan-memory` reported 60,319,553,990 host bytes and 48,348,934,963 device/accounted execution bytes, including safe shard staging and a 20% reserve. Images add a 1 GiB allowance. Both budgets must pass before model allocation; these estimates are conservative admission policy, not a physical-memory reservation.
 
 The managed-runtime authenticated HTTP qualification observed maximum resident size of 31,851,823,104 bytes. The extended full-context/image qualification observed 33,702,543,360 bytes. Both fit the configured 64 GiB budget. These macOS process measurements include allocator retention and should not be treated as portable memory requirements.
 
-Metal loading converts bounded host tensors before final-dtype GPU upload, avoiding a second model-sized temporary allocation. Its host plan includes GPU weights, scratch and shard staging because these share physical unified RAM; the GPU recommended working set is checked independently. Mixed F16 accounts for F32-promoted parameter bytes and budgets activation storage conservatively as F32. Distinct CPU/Metal profiles in one process fail configuration validation until a combined capacity plan exists. Tensor backend errors and panics fail the active request without replay, then use the existing bounded recovery path.
+Metal loading converts bounded host tensors before final-dtype GPU upload, avoiding a second model-sized temporary allocation. Its host plan includes GPU weights, scratch and shard staging because these share physical unified RAM; the GPU recommended working set is checked independently. Mixed F16 accounts for F32-promoted parameter bytes and budgets activation storage as F32 at the larger FFN width.
+
+The full benchmark exposed an initial F16 admission underestimate (23.996 GiB planned versus 26.661 GiB sampled). The final 4,096-token text plans are approximately 28.796 GiB device / 39.944 GiB unified host for F16, and 49.828 GiB device / 60.977 GiB unified host for F32. Both observed peaks, text/image budgets and arithmetic overflow are covered by model-metadata-bound regression tests. Original measured estimates remain in the [raw benchmark report](benchmarks/flash-cpu-metal/report.md).
+
+Distinct CPU/Metal profiles in one process fail configuration validation until a combined capacity plan exists. Tensor backend errors and panics fail the active request without replay, then use the existing bounded recovery path.
 
 Fast scheduler tests verify principal fairness, bounded admission, queued expiry, caller cancellation, reservation ownership, and shutdown. Recovery tests catch a reload panic and verify that shutdown wins a concurrent reload without reopening admission or retaining the discarded engine. Artifact tests verify digest/manifest integrity, incomplete and malformed snapshots, safe paths, leases, and refusal to prune a loaded snapshot. A complete real snapshot was fetched, verified, opened offline, and used for every full-weight test.
 
 The full-weight HTTP integration test compares direct library answers with authenticated router and real TCP answers exactly, verifies provenance, checks the active snapshot lease, closes admission, and joins runtime owners. Listener regression tests expire partial slow headers while allowing active inference to outlive the idle socket deadline.
 
-The same full-weight HTTP integration test passed on Metal F32 (49.56 s) and mixed F16 (42.83 s). Both release Metal CLI/server smoke tests passed with actual GPU PNG/JPEG inference and exact CLI/HTTP response equality.
+The same full-weight HTTP integration test passed on Metal F32 (49.56 s) and mixed F16 (42.83 s). Both release Metal CLI/server smoke tests passed with actual GPU PNG/JPEG inference and exact CLI/HTTP response equality. After the shared YAML guard and memory-plan correction, both real HTTP tests were repeated successfully (F32 50.03 s, F16 42.42 s), and both final release CLI/server PNG/JPEG smoke tests passed again.
 
 The release CLI/server smoke test uses a temporary local JWKS and the clearly identified public test key. It starts `serve --offline`, waits for authenticated readiness, rejects unauthenticated health requests, verifies model discovery, runs PNG/JPEG decisions over TCP against the reference, reads protected metrics, sends SIGTERM, requires successful process exit, then runs offline CLI inference and requires exact CLI/HTTP response equality. No external identity provider or runtime key discovery is needed.
 
@@ -66,10 +70,10 @@ The release CLI/server smoke test uses a temporary local JWKS and the clearly id
 
 `make verify` passed on the final Rust source and lockfile:
 
-- Workspace `cargo build` and `cargo test`: 24 core tests, eight server tests, and four documentation examples passed with default features.
-- Vision build/tests: 28 core tests, eight server tests, and four documentation examples passed. Large-weight tests and the explicit fuzz campaign remain ignored in ordinary tests and were run separately as recorded above.
+- Workspace `cargo build` and `cargo test`: 28 core tests, eight server tests, and nine documentation examples passed with default features.
+- Vision build/tests: 32 core tests, eight server tests, and nine documentation examples passed. Large-weight tests and the explicit fuzz campaign remain ignored in ordinary tests and were run separately as recorded above.
 - Nightly formatting, pedantic Clippy for all workspace targets with default and vision features, and `--no-default-features` offline compilation passed.
-- Metal feature build/tests, real GPU synthetic backbone/head fixtures, and pedantic all-target Clippy passed; the Metal configuration and shared-RAM rejection test passed. The benchmark example's statistics/configuration tests passed.
+- Metal feature build/tests, real GPU synthetic backbone/head fixtures, and pedantic all-target Clippy passed; the Metal configuration and shared-RAM rejection test passed. The Metal matrix passed 32 core tests, nine server tests and nine documentation examples. The benchmark example passed three statistics/configuration tests, including duplicate YAML rejection.
 - Public API documentation built with `RUSTDOCFLAGS='-D warnings'`; artifact and tensor-loader checks passed.
 - `cargo audit --ignore RUSTSEC-2024-0436` and `cargo deny check` passed. The one documented exception is the unmaintained compile-time `paste` macro required transitively by Candle/gemm/tokenizers; no vulnerability advisory is exempted. Dependency duplicates and unused allowed-license entries remain non-failing policy warnings.
 

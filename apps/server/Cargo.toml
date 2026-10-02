@@ -33,7 +33,6 @@ clap.workspace = true
 axum.workspace = true
 tower.workspace = true
 config.workspace = true
-yaml-rust2.workspace = true
 jsonwebtoken.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

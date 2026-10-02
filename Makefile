@@ -145,6 +145,9 @@ bench-domain:
 	$(CARGO) bench -p clef-rs-core --bench domain
 	$(PYTHON) tests/performance/domain_report.py --target '$(CLEF_TARGET_DIRECTORY)' --output '$(BENCHMARK_RESULTS)'
 
+bench-report:
+	$(PYTHON) tests/performance/run.py --render-only --binary '$(CLEF_BENCH_BINARY)' --cache '$(CLEF_RELEASE_CACHE)' --config '$(BENCHMARK_CONFIG)' --output '$(BENCHMARK_RESULTS)'
+
 bench-inference:
 	$(CARGO) build -p clef-rs-core --example benchmark --release --features metal
 	$(PYTHON) tests/performance/run.py --binary '$(CLEF_BENCH_BINARY)' --cache '$(CLEF_RELEASE_CACHE)' --config '$(BENCHMARK_CONFIG)' --output '$(BENCHMARK_RESULTS)' --threads '$(BENCHMARK_THREADS)'
@@ -157,4 +160,4 @@ bench-metal:
 	$(CARGO) build -p clef-rs-core --example benchmark --release --features metal
 	$(PYTHON) tests/performance/run.py --binary '$(CLEF_BENCH_BINARY)' --cache '$(CLEF_RELEASE_CACHE)' --config '$(BENCHMARK_CONFIG)' --output '$(BENCHMARK_RESULTS)' --threads '$(BENCHMARK_THREADS)' --profiles metal:f32 metal:f16
 
-.PHONY: verify-metal-operators verify-metal-release verify-metal-media verify-metal-serving verify-benchmark bench-domain bench-inference bench-cpu bench-metal
+.PHONY: verify-metal-operators verify-metal-release verify-metal-media verify-metal-serving verify-benchmark bench-domain bench-report bench-inference bench-cpu bench-metal

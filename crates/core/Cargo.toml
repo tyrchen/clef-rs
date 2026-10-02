@@ -22,6 +22,7 @@ vision = ["dep:image", "dep:base64", "dep:turbojpeg"]
 workspace = true
 
 [dependencies]
+yaml-rust2.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

@@ -25,7 +25,12 @@ def main():
         mean = record["estimatesNanoseconds"]["mean"]
         interval = mean["confidence_interval"]
         lines.append(f"| {record['name']} | {mean['point_estimate']/1000:.3f} | {interval['lower_bound']/1000:.3f} | {interval['upper_bound']/1000:.3f} |")
-    lines += ["", "Raw iteration counts, observed nanoseconds, estimates and workload byte throughput are preserved in [domain.json](domain.json). Hardware for the full measurement campaign is recorded in [metadata.json](metadata.json)."]
+    request_sizes = ", ".join(f"{record['benchmark']['throughput']['Bytes']:,}"
+                              for record in records if record["name"].startswith("request_parse/"))
+    lines += ["", "The `request_parse/*_bytes` labels describe state UTF-8 byte length, not the entire JSON envelope. "
+              f"Actual request sizes are {request_sizes} bytes; byte throughput uses those full sizes.", "",
+              "Raw iteration counts, observed nanoseconds, estimates and workload byte throughput are preserved in [domain.json](domain.json). Hardware for the full measurement campaign is recorded in [metadata.json](metadata.json)."]
+
     (args.output / "domain.md").write_text("\n".join(lines)+"\n")
 
 

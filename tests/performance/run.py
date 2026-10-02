@@ -57,6 +57,18 @@ def validate(report, profile):
         assert math.isclose(group["successfulRequestsPerSecond"], group["succeeded"]*1000/group["wallMs"], rel_tol=1e-9)
 
 
+def enrich_process(directory, profile, process):
+    log = (directory / f"{profile.replace(':','-')}.log").read_text()
+    footprint = re.search(r"(\d+)\s+peak memory footprint", log)
+    if footprint:
+        process["peakFootprintBytes"] = int(footprint.group(1))
+    timing = re.search(r"([\d.]+)\s+real\s+([\d.]+)\s+user\s+([\d.]+)\s+sys", log)
+    if timing:
+        real, user, system = (float(value) for value in timing.groups())
+        process.update(timeRealSeconds=real, userCpuSeconds=user, systemCpuSeconds=system,
+                       averageCpuCores=(user+system)/real)
+
+
 def render(directory, metadata):
     rows = []
     for profile in metadata["profiles"]:
@@ -65,15 +77,18 @@ def render(directory, metadata):
             report = json.loads(path.read_text())
             if report.get("complete"):
                 validate(report, profile)
+                enrich_process(directory, profile, metadata["processes"][profile])
                 rows.append((profile, report))
     lines = ["# CPU / Metal Flash performance measurements", "", f"Measured {metadata['startedAt']}.", "",
              "```json", json.dumps(metadata["hardware"], indent=2), "```", "",
-             "All backends ran in separate sequential processes using the same YAML workload and fixed thread counts. Normal-path timings include encoding, model execution, answer conversion and GPU completion. Cold process load uses the existing OS file cache; no privileged cache flush was performed.", "",
-             "| Profile | Snapshot verify s | Model load s | First decision s | Managed load/warmup s | Process peak RSS GiB | Post-load direct GPU peak GiB |", "| --- | ---: | ---: | ---: | ---: | ---: | ---: |"]
+             "All backends ran in separate sequential processes using the same YAML workload and fixed thread counts. Normal-path timings measure DirectEngine on prevalidated requests and include encoding, model execution, answer conversion and GPU completion. JSON parsing, HTTP/authentication and transport serialization are excluded; concurrency uses the embedded Runtime. Cold process means a new process: OS file caches and Metal driver/shader caches were not cleared.", "",
+             "| Profile | Snapshot verify s | Model load s | First decision s | Managed load/warmup s | Process peak RSS GiB | Post-load direct GPU peak GiB | OS peak footprint GiB | Average active CPU cores |", "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
     for profile, report in rows:
         process = metadata["processes"][profile]
         peak = f"{report['gpuSampledPeakBytes']/2**30:.3f}" if "gpuSampledPeakBytes" in report else "—"
-        lines.append(f"| {profile} | {report['verificationMs']/1000:.3f} | {report['loadMs']/1000:.3f} | {report['firstDecisionMs']/1000:.3f} | {report['managedStartupMs']/1000:.3f} | {process['peakRssBytes']/2**30:.3f} | {peak} |")
+        footprint = f"{process['peakFootprintBytes']/2**30:.3f}" if "peakFootprintBytes" in process else "—"
+        cores = f"{process['averageCpuCores']:.3f}" if "averageCpuCores" in process else "—"
+        lines.append(f"| {profile} | {report['verificationMs']/1000:.3f} | {report['loadMs']/1000:.3f} | {report['firstDecisionMs']/1000:.3f} | {report['managedStartupMs']/1000:.3f} | {process['peakRssBytes']/2**30:.3f} | {peak} | {footprint} | {cores} |")
     lines += ["", "| Profile | Workload | Tokens | Fields | Options/field | n | Mean ms | p50 ms | p95 ms | p99 ms | req/s | input tokens/s |", "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
     for profile, report in rows:
         for case in report["cases"]:
@@ -95,16 +110,19 @@ def render(directory, metadata):
             memory = case.get("deviceMemory", {})
             allocated = f"{memory['allocatedBytes']/2**30:.3f}" if memory else "—"
             lines.append(f"| {profile} | {case['workload']['name']} | {stage['encodingMs']:.3f} | {stage['backboneMs']:.3f} | {stage['headMs']:.3f} | {stage['conversionMs']:.3f} | {stage['synchronizationMs']:.3f} | {stage['totalMs']:.3f} | {allocated} |")
-    lines += ["", "Managed-runtime concurrency uses the same fixed short workload, FIFO within a principal and round-robin across principals. Admission errors are counted separately.", "",
+    lines += ["", "Managed-runtime concurrency uses the same fixed short workload, FIFO within a principal and round-robin across principals. The harness has one device worker, eight ingress/queue slots, eight preparation workers, and 300-second queue/request/shutdown limits; these differ from production defaults. Admission errors are counted separately.", "",
               "| Profile | Concurrency | Attempts | Successes | Errors | Successful req/s | Successful p50 ms | Successful p95 ms |", "| --- | ---: | ---: | ---: | --- | ---: | ---: | ---: |"]
     for profile, report in rows:
         for group in report["concurrency"]:
             latency = group["latency"]
             lines.append(f"| {profile} | {group['concurrency']} | {group['attempted']} | {group['succeeded']} | {json.dumps(group['errors'],sort_keys=True)} | {group['successfulRequestsPerSecond']:.4f} | {latency['p50Ms']:.3f} | {latency['p95Ms']:.3f} |")
-    lines += ["", "Percentiles use nearest-rank order statistics. With small n, p95/p99 often equal the maximum observation; these are descriptive samples, not production-tail estimates or SLOs. The report preserves every raw timing, error count and environment setting. Metal allocator snapshots include retained buffers. The direct phase also samples allocator usage every 100 ms; its reported peak can miss shorter spikes and excludes initial loading and managed-runtime reload. Metal private allocations can appear as wired system memory outside process RSS, so RSS alone is not a physical-memory comparison. OS process RSS high-water includes both direct and managed phases; unified CPU/GPU allocations must not be summed as independent physical-memory pools.", "",
+    lines += ["", "Percentiles use nearest-rank order statistics. With small n, p95/p99 often equal the maximum observation; these are descriptive samples, not production-tail estimates or SLOs. The report preserves every raw timing, error count and environment setting. Metal allocator snapshots include retained buffers. The direct phase also samples allocator usage every 100 ms; its reported peak can miss shorter spikes and excludes initial loading and managed-runtime reload. Metal private allocations can appear as wired system memory outside process RSS, so RSS alone is not a physical-memory comparison. OS process RSS/footprint high-water includes both direct and managed phases. Footprint is macOS accounting, not a sum of the RSS and GPU columns; unified CPU/GPU allocations must not be summed as independent physical-memory pools.", "",
               "CPU F32 and Metal F32 are a same-precision comparison. Metal F16 uses F16 text backbone with an F32 classifier head/vision tower, residuals/convolution, norms/attention accumulation and recurrent state; compare its numerical qualification separately. CPU uses the default Candle pure-Rust backend, without Accelerate/MKL. Thread settings and the actual executable SHA-256 are recorded in metadata.json."]
     if (directory / "domain.md").exists():
         lines += ["", "See [the domain microbenchmarks](domain.md) for parsing/rendering estimates and [numerical qualification](../../clef-flash-verification.md) for the precision gates."]
+    for note in metadata.get("postMeasurementNotes", []):
+        lines += ["", note]
+    (directory / "metadata.json").write_text(json.dumps(metadata,indent=2)+"\n")
     (directory / "report.md").write_text("\n".join(lines)+"\n")
 
 

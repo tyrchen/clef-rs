@@ -17,12 +17,12 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use clef_rs_core::{
+    configuration::validate_yaml,
     runtime::{DeviceKind, ExecutionProfile, RuntimeConfig},
     types::{CommitRevision, Identifier, ModelPreset},
 };
 use config::{Config, File, FileFormat};
 use serde::Deserialize;
-use yaml_rust2::parser::{Event, Parser};
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -89,7 +89,7 @@ impl Settings {
             bail!("configuration must be a regular file of at most 64 KiB");
         }
         let source = String::from_utf8(read_file(path, 65536)?).context("configuration UTF-8")?;
-        preflight(&source)?;
+        validate_yaml(&source)?;
         let mut builder = Config::builder().add_source(File::from_str(&source, FileFormat::Yaml));
         // Only these explicit operator overrides are accepted; no ambient Hub/proxy settings.
         if let Ok(bind) = std::env::var("CLEF_HTTP_BIND") {
@@ -213,78 +213,6 @@ pub(crate) fn read_file(path: &Path, cap: u64) -> Result<Vec<u8>> {
 pub(crate) fn unix_seconds() -> Result<u64> {
     Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs())
 }
-#[derive(Debug)]
-enum Container {
-    Map {
-        keys: HashSet<String>,
-        expect_key: bool,
-    },
-    Sequence,
-}
-fn preflight(source: &str) -> Result<()> {
-    if source.len() > 65536 {
-        bail!("YAML byte limit");
-    }
-    let mut parser = Parser::new_from_str(source);
-    let mut stack = Vec::new();
-    let mut docs = 0;
-    for _ in 0..8192 {
-        let (event, _) = parser.next_token().context("parse bounded YAML events")?;
-        match event {
-            Event::Alias(_) => bail!("YAML aliases are forbidden"),
-            Event::DocumentStart => {
-                docs += 1;
-                if docs > 1 {
-                    bail!("multiple YAML documents are forbidden");
-                }
-            }
-            Event::Scalar(value, style, anchor, tag) => {
-                if anchor != 0 || tag.is_some() || value.len() > 8192 {
-                    bail!("YAML anchor/tag/scalar limit");
-                }
-                if let Some(Container::Map { keys, expect_key }) = stack.last_mut() {
-                    if *expect_key {
-                        if value.is_empty() || !keys.insert(value.clone()) {
-                            bail!("duplicate or empty YAML key");
-                        }
-                        if matches!(style, yaml_rust2::scanner::TScalarStyle::Plain)
-                            && (value.parse::<f64>().is_ok()
-                                || matches!(value.as_str(), "true" | "false" | "null" | "~"))
-                        {
-                            bail!("YAML keys must be strings");
-                        }
-                    }
-                    *expect_key = !*expect_key;
-                }
-            }
-            Event::MappingStart(anchor, ref tag) | Event::SequenceStart(anchor, ref tag) => {
-                if anchor != 0 || tag.is_some() || stack.len() >= 16 {
-                    bail!("YAML anchor/tag/depth limit");
-                }
-                if let Some(Container::Map { expect_key, .. }) = stack.last_mut() {
-                    if *expect_key {
-                        bail!("YAML keys must be scalars");
-                    }
-                    *expect_key = true;
-                }
-                if matches!(event, Event::MappingStart(..)) {
-                    stack.push(Container::Map {
-                        keys: HashSet::new(),
-                        expect_key: true,
-                    });
-                } else {
-                    stack.push(Container::Sequence);
-                }
-            }
-            Event::MappingEnd | Event::SequenceEnd => {
-                stack.pop();
-            }
-            Event::StreamEnd => return Ok(()),
-            _ => {}
-        }
-    }
-    bail!("YAML event limit")
-}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -297,9 +225,9 @@ mod tests {
             "---\nx: 1\n---\nx: 2",
             "? [a, b]\n: c",
         ] {
-            assert!(preflight(source).is_err(), "{source}");
+            assert!(validate_yaml(source).is_err(), "{source}");
         }
-        assert!(preflight("a:\n  b: 1\n  c: [2,3]").is_ok());
+        assert!(validate_yaml("a:\n  b: 1\n  c: [2,3]").is_ok());
     }
     #[test]
     fn test_should_load_example_and_reject_conflicting_device_budgets() -> Result<()> {

@@ -1,0 +1,105 @@
+{
+  "startedAt": "2026-10-02T15:17:57.622865+00:00",
+  "hardware": {
+    "system": "Darwin",
+    "release": "25.5.0",
+    "machine": "arm64",
+    "cpu": "Apple M5 Pro",
+    "ramBytes": 68719476736,
+    "cpuCores": 18,
+    "osVersion": "26.5.2",
+    "gpus": [
+      {
+        "model": "Apple M5 Pro",
+        "cores": "20",
+        "metal": "spdisplays_metal4"
+      }
+    ]
+  },
+  "rust": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "gitCommit": "0900a466c7a544635afcc125dc7a6368a7cc41f4",
+  "gitDirty": true,
+  "binarySha256": "e1eba6bb3f311d59b59ded14e9c54bdd2ea0b35440c77e461f43f22469ddb7e7",
+  "configSha256": "2f61504c5284705bccfc958475127799d9b3e5cf16751aa43063c7a0e98a3ca2",
+  "profiles": [
+    "cpu:f32",
+    "metal:f32",
+    "metal:f16"
+  ],
+  "threadSettings": {
+    "RAYON_NUM_THREADS": "8",
+    "CANDLE_NUM_THREADS": "8"
+  },
+  "processes": {
+    "cpu:f32": {
+      "wallSeconds": 4902.1326164999045,
+      "peakRssBytes": 31982485504,
+      "command": [
+        "/Users/tchen/.target/release/examples/benchmark",
+        "--cache-dir",
+        "/Users/tchen/.cache/clef-rs",
+        "--config",
+        "/Users/tchen/projects/mycode/rust/clef-rs/examples/clef.benchmark.yaml",
+        "--device",
+        "cpu",
+        "--dtype",
+        "f32",
+        "--output",
+        "/Users/tchen/projects/mycode/rust/clef-rs/docs/benchmarks/flash-cpu-metal/cpu-f32.json"
+      ],
+      "peakFootprintBytes": 43888721168,
+      "timeRealSeconds": 4902.17,
+      "userCpuSeconds": 16923.05,
+      "systemCpuSeconds": 499.23,
+      "averageCpuCores": 3.55399343556017
+    },
+    "metal:f32": {
+      "wallSeconds": 1717.6949326670729,
+      "peakRssBytes": 29864968192,
+      "command": [
+        "/Users/tchen/.target/release/examples/benchmark",
+        "--cache-dir",
+        "/Users/tchen/.cache/clef-rs",
+        "--config",
+        "/Users/tchen/projects/mycode/rust/clef-rs/examples/clef.benchmark.yaml",
+        "--device",
+        "metal",
+        "--dtype",
+        "f32",
+        "--output",
+        "/Users/tchen/projects/mycode/rust/clef-rs/docs/benchmarks/flash-cpu-metal/metal-f32.json"
+      ],
+      "peakFootprintBytes": 52630895432,
+      "timeRealSeconds": 1717.63,
+      "userCpuSeconds": 107.7,
+      "systemCpuSeconds": 59.65,
+      "averageCpuCores": 0.09743076215482961
+    },
+    "metal:f16": {
+      "wallSeconds": 1685.0344034160953,
+      "peakRssBytes": 27542781952,
+      "command": [
+        "/Users/tchen/.target/release/examples/benchmark",
+        "--cache-dir",
+        "/Users/tchen/.cache/clef-rs",
+        "--config",
+        "/Users/tchen/projects/mycode/rust/clef-rs/examples/clef.benchmark.yaml",
+        "--device",
+        "metal",
+        "--dtype",
+        "f16",
+        "--output",
+        "/Users/tchen/projects/mycode/rust/clef-rs/docs/benchmarks/flash-cpu-metal/metal-f16.json"
+      ],
+      "peakFootprintBytes": 29019994128,
+      "timeRealSeconds": 1684.94,
+      "userCpuSeconds": 111.06,
+      "systemCpuSeconds": 48.04,
+      "averageCpuCores": 0.09442472728999252
+    }
+  },
+  "postMeasurementNotes": [
+    "The measured executable is from commit `0900a46`, identified by its recorded SHA-256. Follow-up changes share bounded YAML validation between server and benchmark, add API examples, and correct the admission memory estimate; these do not change the measured tensor execution graph.",
+    "The recorded F16 device plan (23.996 GiB) underestimated its observed sampled peak (26.661 GiB). The final planner budgets Metal temporary tensors at the larger FFN width, retaining the 20% reserve: approximately 28.796 GiB device / 39.944 GiB unified host for F16, and 49.828 GiB device / 60.977 GiB unified host for F32 at 4,096 text tokens. Regression tests bind the reviewed model metadata and cover both measured peaks, arithmetic overflow and the qualified runner budgets. The raw JSON keeps the original measured executable\u2019s estimates."
+  ]
+}

@@ -109,6 +109,14 @@ impl Encoder {
     ///
     /// # Errors
     /// Returns an error for missing, changed or malformed tokenizer bytes.
+    ///
+    /// ```no_run
+    /// # use clef_rs_core::{Result, artifacts::VerifiedSnapshot, encoding::{Encoder, Truncation}, types::DecisionRequest};
+    /// # fn count(snapshot: &VerifiedSnapshot, request: &DecisionRequest) -> Result<usize> {
+    /// let encoder = Encoder::from_snapshot(snapshot)?;
+    /// Ok(encoder.encode(request, 4096, Truncation::Reject, None)?.token_count())
+    /// # }
+    /// ```
     pub fn from_snapshot(snapshot: &VerifiedSnapshot) -> Result<Self> {
         Self::load(&snapshot.file("tokenizer.json")?)
     }

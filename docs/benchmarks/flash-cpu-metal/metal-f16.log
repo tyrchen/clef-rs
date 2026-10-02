@@ -1,0 +1,66 @@
+2026-10-02T17:08:42.106508Z  INFO clef_rs_core::models::weights: All reviewed Flash weight tensors loaded
+2026-10-02T17:08:46.702464Z  INFO benchmark: benchmark workload started case="short-256" tokens=256
+2026-10-02T17:08:55.462672Z  INFO benchmark: normal inference measured case="short-256" sample=1 milliseconds=4380.141791999999
+2026-10-02T17:08:59.841397Z  INFO benchmark: normal inference measured case="short-256" sample=2 milliseconds=4378.690542
+2026-10-02T17:09:04.221980Z  INFO benchmark: normal inference measured case="short-256" sample=3 milliseconds=4380.549583
+2026-10-02T17:09:08.602046Z  INFO benchmark: normal inference measured case="short-256" sample=4 milliseconds=4380.024083
+2026-10-02T17:09:12.981955Z  INFO benchmark: normal inference measured case="short-256" sample=5 milliseconds=4379.864041
+2026-10-02T17:09:17.361301Z  INFO benchmark: normal inference measured case="short-256" sample=6 milliseconds=4379.304125
+2026-10-02T17:09:21.741725Z  INFO benchmark: normal inference measured case="short-256" sample=7 milliseconds=4380.361209000001
+2026-10-02T17:09:26.122455Z  INFO benchmark: normal inference measured case="short-256" sample=8 milliseconds=4380.675333
+2026-10-02T17:09:30.502172Z  INFO benchmark: normal inference measured case="short-256" sample=9 milliseconds=4379.669958
+2026-10-02T17:09:34.883928Z  INFO benchmark: normal inference measured case="short-256" sample=10 milliseconds=4381.708500000001
+2026-10-02T17:09:39.266324Z  INFO benchmark: benchmark workload started case="medium-1024" tokens=1024
+2026-10-02T17:10:14.389097Z  INFO benchmark: normal inference measured case="medium-1024" sample=1 milliseconds=17562.890541
+2026-10-02T17:10:31.948680Z  INFO benchmark: normal inference measured case="medium-1024" sample=2 milliseconds=17559.510041999998
+2026-10-02T17:10:49.510826Z  INFO benchmark: normal inference measured case="medium-1024" sample=3 milliseconds=17562.07475
+2026-10-02T17:11:07.071380Z  INFO benchmark: normal inference measured case="medium-1024" sample=4 milliseconds=17560.481834000002
+2026-10-02T17:11:24.631643Z  INFO benchmark: normal inference measured case="medium-1024" sample=5 milliseconds=17560.188292
+2026-10-02T17:11:42.191833Z  INFO benchmark: normal inference measured case="medium-1024" sample=6 milliseconds=17560.122083
+2026-10-02T17:11:59.752570Z  INFO benchmark: normal inference measured case="medium-1024" sample=7 milliseconds=17560.664167
+2026-10-02T17:12:17.313345Z  INFO benchmark: normal inference measured case="medium-1024" sample=8 milliseconds=17560.700875
+2026-10-02T17:12:34.871905Z  INFO benchmark: normal inference measured case="medium-1024" sample=9 milliseconds=17558.495625
+2026-10-02T17:12:52.432415Z  INFO benchmark: normal inference measured case="medium-1024" sample=10 milliseconds=17560.4395
+2026-10-02T17:13:09.994150Z  INFO benchmark: benchmark workload started case="long-4096" tokens=4096
+2026-10-02T17:15:32.751965Z  INFO benchmark: normal inference measured case="long-4096" sample=1 milliseconds=71431.989917
+2026-10-02T17:16:44.186899Z  INFO benchmark: normal inference measured case="long-4096" sample=2 milliseconds=71436.654459
+2026-10-02T17:17:55.618657Z  INFO benchmark: normal inference measured case="long-4096" sample=3 milliseconds=71433.480125
+2026-10-02T17:19:07.056797Z  INFO benchmark: benchmark workload started case="mixed-8-fields" tokens=1024
+2026-10-02T17:19:42.215275Z  INFO benchmark: normal inference measured case="mixed-8-fields" sample=1 milliseconds=17579.667875
+2026-10-02T17:19:59.795458Z  INFO benchmark: normal inference measured case="mixed-8-fields" sample=2 milliseconds=17580.583791999998
+2026-10-02T17:20:17.378131Z  INFO benchmark: normal inference measured case="mixed-8-fields" sample=3 milliseconds=17583.076458
+2026-10-02T17:20:34.958414Z  INFO benchmark: normal inference measured case="mixed-8-fields" sample=4 milliseconds=17580.68375
+2026-10-02T17:20:52.540903Z  INFO benchmark: normal inference measured case="mixed-8-fields" sample=5 milliseconds=17582.890124999998
+2026-10-02T17:21:10.121588Z  INFO benchmark: normal inference measured case="mixed-8-fields" sample=6 milliseconds=17581.082833
+2026-10-02T17:21:28.187593Z  INFO benchmark: normal inference measured case="mixed-8-fields" sample=7 milliseconds=18066.407917
+2026-10-02T17:21:46.063660Z  INFO benchmark: normal inference measured case="mixed-8-fields" sample=8 milliseconds=17876.46725
+2026-10-02T17:22:03.853728Z  INFO benchmark: normal inference measured case="mixed-8-fields" sample=9 milliseconds=17790.476
+2026-10-02T17:22:21.640503Z  INFO benchmark: normal inference measured case="mixed-8-fields" sample=10 milliseconds=17787.172792
+2026-10-02T17:22:39.431583Z  INFO benchmark: benchmark workload started case="wide-32-fields" tokens=3072
+2026-10-02T17:24:27.542129Z  INFO benchmark: normal inference measured case="wide-32-fields" sample=1 milliseconds=54054.587583
+2026-10-02T17:25:21.586501Z  INFO benchmark: normal inference measured case="wide-32-fields" sample=2 milliseconds=54045.659999999996
+2026-10-02T17:26:15.643586Z  INFO benchmark: normal inference measured case="wide-32-fields" sample=3 milliseconds=54058.374209
+2026-10-02T17:27:09.695395Z  INFO benchmark: benchmark workload started case="large-option-schema" tokens=4096
+2026-10-02T17:29:34.352205Z  INFO benchmark: normal inference measured case="large-option-schema" sample=1 milliseconds=72339.423792
+2026-10-02T17:30:46.720640Z  INFO benchmark: normal inference measured case="large-option-schema" sample=2 milliseconds=72368.088917
+2026-10-02T17:31:59.078939Z  INFO benchmark: normal inference measured case="large-option-schema" sample=3 milliseconds=72360.038583
+2026-10-02T17:33:29.770002Z  INFO clef_rs_core::models::weights: All reviewed Flash weight tensors loaded
+2026-10-02T17:33:34.208501Z  INFO start: clef_rs_core::runtime: Flash worker loaded and warmed; admission open
+     1684.94 real       111.06 user        48.04 sys
+         27542781952  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             5463241  page reclaims
+                 323  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                 341  voluntary context switches
+             2097922  involuntary context switches
+       1661012730670  instructions retired
+        546941045873  cycles elapsed
+         29019994128  peak memory footprint

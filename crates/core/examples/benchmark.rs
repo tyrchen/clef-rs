@@ -24,6 +24,7 @@ use clap::{Parser, ValueEnum};
 use clef_rs_core::{
     DecisionRequest, DirectEngine, ExecutionProfile, Runtime, RuntimeConfig,
     artifacts::ArtifactStore,
+    configuration::validate_yaml,
     encoding::{Encoder, Truncation},
     runtime::{
         DecisionOptions, DeviceKind, DeviceMemory, ExecutionTimings, MemoryPlan, MemoryProbe,
@@ -200,6 +201,7 @@ fn load_settings(path: &Path) -> Result<Settings> {
     if text.len() > 65536 {
         bail!("benchmark YAML exceeds 64 KiB");
     }
+    validate_yaml(&text)?;
     let settings: Settings = Config::builder()
         .add_source(ConfigFile::from_str(&text, FileFormat::Yaml))
         .build()?
@@ -311,6 +313,21 @@ fn save(path: &Path, report: &Report) -> Result<()> {
     let temporary = path.with_extension("partial.json");
     serde_json::to_writer_pretty(File::create(&temporary)?, report)?;
     fs::rename(temporary, path)?;
+    Ok(())
+}
+fn finish_direct_phase(
+    monitor: Option<MemoryMonitor>,
+    report: &mut Report,
+    path: &Path,
+) -> Result<()> {
+    report.gpu_sampled_peak_bytes = monitor.map(MemoryMonitor::finish).transpose()?;
+    save(path, report)?;
+    if report
+        .gpu_sampled_peak_bytes
+        .is_some_and(|peak| peak > report.memory_plan.device_bytes)
+    {
+        bail!("measured Metal allocation peak exceeds the memory plan");
+    }
     Ok(())
 }
 #[allow(
@@ -497,7 +514,7 @@ fn main() -> Result<()> {
             .push(measure(&mut engine, case, input, settings.warmup_per_case)?);
         save(&args.output, &report)?;
     }
-    report.gpu_sampled_peak_bytes = monitor.map(MemoryMonitor::finish).transpose()?;
+    finish_direct_phase(monitor, &mut report, &args.output)?;
     drop(engine);
     let config = RuntimeConfig::builder()
         .preparation_workers(8)
@@ -530,6 +547,9 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use clef_rs_core::Error as CoreError;
+    use tempfile::tempdir;
+
     use super::*;
     #[test]
     fn test_should_report_order_statistics_without_hiding_small_sample_count() {
@@ -537,6 +557,19 @@ mod tests {
         assert_eq!(result.count, 4);
         assert!((result.p50_ms - 2.).abs() < f64::EPSILON);
         assert!((result.p99_ms - 4.).abs() < f64::EPSILON);
+    }
+    #[test]
+    fn test_should_reject_duplicate_yaml_before_configuration_overwrites_values() -> Result<()> {
+        let directory = tempdir()?;
+        let path = directory.path().join("benchmark.yaml");
+        let mut source = include_str!("../../../examples/clef.benchmark.yaml").to_owned();
+        source.push_str("\nwarmupPerCase: 0\n");
+        fs::write(&path, source)?;
+        let error = load_settings(&path).err().context("duplicate must fail")?;
+        assert!(
+            matches!(error.downcast_ref::<CoreError>(), Some(CoreError::InvalidRequest(message)) if message.contains("duplicate"))
+        );
+        Ok(())
     }
     #[test]
     fn test_should_validate_checked_in_benchmark_configuration() -> Result<()> {

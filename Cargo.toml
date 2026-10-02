@@ -40,7 +40,7 @@ clap = { version = "4.6", features = ["derive"] }
 axum = "0.8"
 tower = { version = "0.5", features = ["util", "limit", "timeout"] }
 config = { version = "0.15", default-features = false, features = ["yaml"] }
-yaml-rust2 = "0.11"
+yaml-rust2 = { version = "0.13", default-features = false }
 jsonwebtoken = { version = "11.1", default-features = false, features = ["aws_lc_rs"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 metrics = "0.24"

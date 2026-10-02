@@ -5,6 +5,7 @@
 #![forbid(unsafe_code)]
 
 pub mod artifacts;
+pub mod configuration;
 pub mod encoding;
 mod error;
 #[cfg(feature = "vision")]

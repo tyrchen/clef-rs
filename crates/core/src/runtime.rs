@@ -20,7 +20,7 @@ use typed_builder::TypedBuilder;
 
 use crate::{
     Error, Result,
-    artifacts::VerifiedSnapshot,
+    artifacts::{Manifest, VerifiedSnapshot},
     encoding::{EncodedRecord, Encoder, Truncation},
     models::{
         Control,
@@ -156,97 +156,20 @@ pub struct MemoryPlan {
     /// Required peak device bytes.
     pub device_bytes: u64,
 }
-/// Synchronized stage measurements; additional barriers make this diagnostic mode
-/// different from normal inference. Use normal calls for latency/throughput measurements.
-#[derive(Debug, Clone, Copy, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
-#[non_exhaustive]
-pub struct ExecutionTimings {
-    /// Tokenization and optional image patch preparation.
-    pub encoding_ms: f64,
-    /// Backbone and optional vision, including their diagnostic GPU barrier.
-    pub backbone_ms: f64,
-    /// Learned joint head and its diagnostic GPU barrier/readback.
-    pub head_ms: f64,
-    /// Typed answer conversion and provenance construction.
-    pub conversion_ms: f64,
-    /// Final device synchronization.
-    pub synchronization_ms: f64,
-    /// Entire diagnostic call, including preparation.
-    pub total_ms: f64,
-}
-/// Metal allocator snapshot; counts include reusable buffers, not just live tensors.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-#[non_exhaustive]
-pub struct DeviceMemory {
-    /// Metal's current allocated GPU bytes.
-    pub allocated_bytes: u64,
-    /// OS-recommended GPU working set; unified RAM also has host consumers.
-    pub recommended_bytes: u64,
-    /// GPU architecture reported by Metal.
-    pub architecture: String,
-}
-/// Read-only allocator observation handle. It owns no model tensors and never
-/// submits work; a benchmark can sample it while the device owner executes.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub struct MemoryProbe {
-    #[cfg(feature = "metal")]
-    device: Device,
-}
-impl MemoryProbe {
-    /// Read Metal allocation accounting. CPU has no separate device allocator.
-    #[must_use]
-    pub fn snapshot(&self) -> Option<DeviceMemory> {
-        #[cfg(feature = "metal")]
-        if let Device::Metal(metal) = &self.device {
-            return Some(DeviceMemory {
-                allocated_bytes: metal.device().current_allocated_size() as u64,
-                recommended_bytes: metal.device().recommended_max_working_set_size() as u64,
-                architecture: metal.device().architecture_name(),
-            });
-        }
-        None
-    }
-}
-/// Direct engine owns every model tensor on its caller's thread.
-#[derive(Debug)]
-pub struct DirectEngine {
-    snapshot: VerifiedSnapshot,
-    profile: ExecutionProfile,
-    encoder: Encoder,
-    backbone: Backbone,
-    head: Head,
-    device: Device,
-    truncation: Truncation,
-    #[cfg(feature = "vision")]
-    vision: Option<crate::models::vision::Vision>,
-}
-impl DirectEngine {
-    /// Conservative plan before allocation.
-    ///
-    /// # Errors
-    /// Returns errors for invalid metadata or arithmetic overflow.
-    pub fn memory_plan(
-        snapshot: &VerifiedSnapshot,
+impl MemoryPlan {
+    fn estimate(
+        config: &ModelConfig,
+        manifest: &Manifest,
         profile: &ExecutionProfile,
-    ) -> Result<MemoryPlan> {
-        profile.validate()?;
-        let config: ModelConfig = serde_json::from_slice(
-            &snapshot.read_verified("config.json", Instant::now() + Duration::from_secs(30))?,
-        )?;
-        config.validate()?;
+    ) -> Result<Self> {
         let c = &config.text_config;
-        let payload: u64 = snapshot
-            .manifest()
+        let payload = manifest
             .files
             .iter()
             .filter(|f| f.name.ends_with(".safetensors"))
-            .map(|f| f.size)
-            .sum();
-        let largest = snapshot
-            .manifest()
+            .try_fold(0_u64, |total, f| total.checked_add(f.size))
+            .ok_or(Error::InsufficientMemory)?;
+        let largest = manifest
             .files
             .iter()
             .filter(|f| f.name.ends_with(".safetensors"))
@@ -269,11 +192,18 @@ impl DirectEngine {
             .and_then(|n| n.checked_add(precision_extra))
             .ok_or(Error::InsufficientMemory)?;
         let t = profile.max_context_tokens as u64;
-        let h = c.hidden_size as u64;
+        // Metal's asynchronous command buffers retain FFN intermediates, whose
+        // width is three times the residual width in Flash. Budget the largest
+        // activation width for the same 32-buffer allowance, in addition to reserve.
+        let width = if profile.device == DeviceKind::Metal {
+            c.hidden_size.max(c.intermediate_size)
+        } else {
+            c.hidden_size
+        } as u64;
         // Mixed F16 retains F32 residuals/accumulators; conservatively budget all
         // live hidden states, Q/K/V/gates, FFN intermediates and head evidence as F32.
         let activations = t
-            .checked_mul(h)
+            .checked_mul(width)
             .and_then(|n| n.checked_mul(4 * 32))
             .ok_or(Error::InsufficientMemory)?;
         let attention = (c.num_attention_heads as u64)
@@ -322,10 +252,101 @@ impl DirectEngine {
                     .ok_or(Error::InsufficientMemory)?,
             )?
         };
-        Ok(MemoryPlan {
+        Ok(Self {
             host_bytes,
             device_bytes,
         })
+    }
+}
+/// Synchronized stage measurements; additional barriers make this diagnostic mode
+/// different from normal inference. Use normal calls for latency/throughput measurements.
+#[derive(Debug, Clone, Copy, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[non_exhaustive]
+pub struct ExecutionTimings {
+    /// Tokenization and optional image patch preparation.
+    pub encoding_ms: f64,
+    /// Backbone and optional vision, including their diagnostic GPU barrier.
+    pub backbone_ms: f64,
+    /// Learned joint head and its diagnostic GPU barrier/readback.
+    pub head_ms: f64,
+    /// Typed answer conversion and provenance construction.
+    pub conversion_ms: f64,
+    /// Final device synchronization.
+    pub synchronization_ms: f64,
+    /// Entire diagnostic call, including preparation.
+    pub total_ms: f64,
+}
+/// Metal allocator snapshot; counts include reusable buffers, not just live tensors.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[non_exhaustive]
+pub struct DeviceMemory {
+    /// Metal's current allocated GPU bytes.
+    pub allocated_bytes: u64,
+    /// OS-recommended GPU working set; unified RAM also has host consumers.
+    pub recommended_bytes: u64,
+    /// GPU architecture reported by Metal.
+    pub architecture: String,
+}
+/// Read-only allocator observation handle. It owns no model tensors and never
+/// submits work; a benchmark can sample it while the device owner executes.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct MemoryProbe {
+    #[cfg(feature = "metal")]
+    device: Device,
+}
+impl MemoryProbe {
+    /// Read Metal allocation accounting. CPU has no separate device allocator.
+    ///
+    /// ```no_run
+    /// # use clef_rs_core::runtime::MemoryProbe;
+    /// # fn allocated(probe: &MemoryProbe) -> Option<u64> {
+    /// probe.snapshot().map(|memory| memory.allocated_bytes)
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn snapshot(&self) -> Option<DeviceMemory> {
+        #[cfg(feature = "metal")]
+        if let Device::Metal(metal) = &self.device {
+            return Some(DeviceMemory {
+                allocated_bytes: metal.device().current_allocated_size() as u64,
+                recommended_bytes: metal.device().recommended_max_working_set_size() as u64,
+                architecture: metal.device().architecture_name(),
+            });
+        }
+        None
+    }
+}
+/// Direct engine owns every model tensor on its caller's thread.
+#[derive(Debug)]
+pub struct DirectEngine {
+    snapshot: VerifiedSnapshot,
+    profile: ExecutionProfile,
+    encoder: Encoder,
+    backbone: Backbone,
+    head: Head,
+    device: Device,
+    truncation: Truncation,
+    #[cfg(feature = "vision")]
+    vision: Option<crate::models::vision::Vision>,
+}
+impl DirectEngine {
+    /// Conservative plan before allocation.
+    ///
+    /// # Errors
+    /// Returns errors for invalid metadata or arithmetic overflow.
+    pub fn memory_plan(
+        snapshot: &VerifiedSnapshot,
+        profile: &ExecutionProfile,
+    ) -> Result<MemoryPlan> {
+        profile.validate()?;
+        let config: ModelConfig = serde_json::from_slice(
+            &snapshot.read_verified("config.json", Instant::now() + Duration::from_secs(30))?,
+        )?;
+        config.validate()?;
+        MemoryPlan::estimate(&config, snapshot.manifest(), profile)
     }
     /// Blocking offline load. May take minutes; the caller owns cancellation of its thread.
     ///
@@ -428,11 +449,28 @@ impl DirectEngine {
         Ok((result, timings))
     }
     /// Snapshot Metal memory accounting; CPU has no separate device allocator.
+    ///
+    /// ```no_run
+    /// # use clef_rs_core::runtime::DirectEngine;
+    /// # fn inspect(engine: &DirectEngine) {
+    /// if let Some(memory) = engine.device_memory() {
+    ///     assert!(memory.recommended_bytes > 0);
+    /// }
+    /// # }
+    /// ```
     #[must_use]
     pub fn device_memory(&self) -> Option<DeviceMemory> {
         self.memory_probe().snapshot()
     }
     /// Obtain a metadata-only handle for concurrent allocator sampling.
+    ///
+    /// ```no_run
+    /// # use clef_rs_core::runtime::{DirectEngine, DeviceMemory};
+    /// # fn sample(engine: &DirectEngine) -> Option<DeviceMemory> {
+    /// let observer = engine.memory_probe();
+    /// observer.snapshot()
+    /// # }
+    /// ```
     #[must_use]
     pub fn memory_probe(&self) -> MemoryProbe {
         MemoryProbe {
@@ -1166,7 +1204,71 @@ async fn schedule(
 
 #[cfg(test)]
 mod tests {
+    use sha2::{Digest, Sha256};
+
     use super::*;
+    use crate::{artifacts::hex, types::ModelPreset};
+
+    #[test]
+    fn test_should_cover_measured_metal_peaks_within_qualified_runner_limits() -> Result<()> {
+        let bytes = include_bytes!("../fixtures/release/flash-config.json");
+        let manifest = Manifest::catalog(ModelPreset::ClefFlash)?;
+        let artifact = manifest
+            .files
+            .iter()
+            .find(|file| file.name == "config.json")
+            .ok_or(Error::ArtifactMissing)?;
+        assert_eq!(hex(&Sha256::digest(bytes)), artifact.sha256);
+        let config: ModelConfig = serde_json::from_slice(bytes)?;
+        config.validate()?;
+        // Full-weight, 4096-token campaign: recorded Metal allocation peaks.
+        for (dtype, observed_peak) in [
+            (Precision::F32, 47_541_420_032),
+            (Precision::F16, 28_627_435_520),
+        ] {
+            for modality in [Modality::Text, Modality::Image] {
+                let profile = ExecutionProfile::builder()
+                    .device(DeviceKind::Metal)
+                    .dtype(dtype)
+                    .modality(modality)
+                    .max_context_tokens(4096)
+                    .device_budget_bytes(68_719_476_736)
+                    .host_budget_bytes(68_719_476_736)
+                    .build();
+                let plan = MemoryPlan::estimate(&config, &manifest, &profile)?;
+                assert!(plan.device_bytes >= observed_peak);
+                assert!(plan.device_bytes <= 55_662_788_608);
+                assert!(plan.host_bytes <= profile.host_budget_bytes);
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_should_reject_overflowing_weight_metadata_without_panicking() -> Result<()> {
+        let config: ModelConfig =
+            serde_json::from_slice(include_bytes!("../fixtures/release/flash-config.json"))?;
+        let mut manifest = Manifest::catalog(ModelPreset::ClefFlash)?;
+        let artifact = manifest
+            .files
+            .iter_mut()
+            .find(|file| file.name.ends_with(".safetensors"))
+            .ok_or(Error::ArtifactMissing)?;
+        artifact.size = u64::MAX;
+        let profile = ExecutionProfile::builder()
+            .device(DeviceKind::Cpu)
+            .dtype(Precision::F32)
+            .modality(Modality::Text)
+            .max_context_tokens(4096)
+            .device_budget_bytes(68_719_476_736)
+            .host_budget_bytes(68_719_476_736)
+            .build();
+        assert!(matches!(
+            MemoryPlan::estimate(&config, &manifest, &profile),
+            Err(Error::InsufficientMemory)
+        ));
+        Ok(())
+    }
     #[test]
     fn test_should_validate_runtime_caps_and_explicit_profiles() -> Result<()> {
         RuntimeConfig::default().validate()?;

@@ -2,6 +2,7 @@
 use std::sync::Arc;
 
 use thiserror::Error;
+use yaml_rust2::scanner::ScanError;
 
 /// A library result.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -58,6 +59,9 @@ pub enum Error {
     /// JSON parse failure.
     #[error("invalid JSON")]
     Json(#[source] Arc<serde_json::Error>),
+    /// YAML syntax failure before configuration value construction.
+    #[error("invalid YAML")]
+    Yaml(#[source] Arc<ScanError>),
     /// Candle operation failed.
     #[error("model tensor operation failed")]
     Tensor(#[source] Arc<candle_core::Error>),
@@ -78,6 +82,11 @@ impl From<std::io::Error> for Error {
 impl From<serde_json::Error> for Error {
     fn from(source: serde_json::Error) -> Self {
         Self::Json(Arc::new(source))
+    }
+}
+impl From<ScanError> for Error {
+    fn from(source: ScanError) -> Self {
+        Self::Yaml(Arc::new(source))
     }
 }
 impl From<candle_core::Error> for Error {
