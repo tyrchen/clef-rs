@@ -1,0 +1,45 @@
+schemaVersion: 1
+warmupPerCase: 1
+cases:
+  - name: short-256
+    tokens: 256
+    fields: 1
+    options: 2
+    samples: 10
+  - name: medium-1024
+    tokens: 1024
+    fields: 1
+    options: 2
+    samples: 10
+  - name: long-4096
+    tokens: 4096
+    fields: 1
+    options: 2
+    samples: 3
+  - name: mixed-8-fields
+    tokens: 1024
+    fields: 8
+    options: 4
+    samples: 10
+  - name: wide-32-fields
+    tokens: 3072
+    fields: 32
+    options: 2
+    samples: 3
+  - name: large-option-schema
+    tokens: 4096
+    fields: 4
+    options: 64
+    samples: 3
+  - name: minimal-139
+    tokens: 139
+    fields: 1
+    options: 2
+    samples: 20
+  - name: compact-192
+    tokens: 192
+    fields: 1
+    options: 2
+    samples: 20
+concurrency: [1, 2, 8, 16]
+requestsPerWorker: 2

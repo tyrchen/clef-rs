@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "revision": "17f0b0ad64efb65d273590632833508766b2aae6",
+  "manifestDigest": "835c9b759faa2f20eec67dfdbf12ea74fc9937c58623b07371db6149b06ef59d",
+  "profile": "metal:0:f16:text:4096",
+  "pid": 35940,
+  "memoryPlan": {
+    "hostBytes": 42889834550,
+    "deviceBytes": 30919215523
+  },
+  "verificationMs": 5998.093416,
+  "loadMs": 17525.500416,
+  "firstDecisionMs": 350.25520900000004,
+  "cases": [
+    {
+      "workload": {
+        "name": "short-256",
+        "tokens": 256,
+        "fields": 1,
+        "options": 2,
+        "samples": 3
+      },
+      "actualTokens": 256,
+      "latency": {
+        "count": 3,
+        "meanMs": 310.67883366666666,
+        "minMs": 310.180209,
+        "p50Ms": 310.211292,
+        "p95Ms": 311.645,
+        "p99Ms": 311.645,
+        "maxMs": 311.645,
+        "standardDeviationMs": 0.6833006053816107
+      },
+      "wallMs": 932.0705,
+      "requestsPerSecond": 3.2186406500366656,
+      "inputTokensPerSecond": 823.9720064093864,
+      "samplesMs": [
+        310.180209,
+        311.645,
+        310.211292
+      ],
+      "diagnostic": {
+        "encodingMs": 0.271666,
+        "backboneMs": 303.884167,
+        "headMs": 8.670833,
+        "conversionMs": 0.008084,
+        "synchronizationMs": 0.00575,
+        "totalMs": 312.84104099999996
+      },
+      "deviceMemory": {
+        "allocatedBytes": 18395496448,
+        "recommendedBytes": 55662788608,
+        "architecture": "applegpu_g17s"
+      }
+    }
+  ],
+  "managedStartupMs": 18805.203333,
+  "concurrency": [
+    {
+      "concurrency": 1,
+      "attempted": 1,
+      "succeeded": 1,
+      "errors": {},
+      "wallMs": 313.38554200000004,
+      "successfulRequestsPerSecond": 3.190957673471739,
+      "latency": {
+        "count": 1,
+        "meanMs": 313.351584,
+        "minMs": 313.351584,
+        "p50Ms": 313.351584,
+        "p95Ms": 313.351584,
+        "p99Ms": 313.351584,
+        "maxMs": 313.351584,
+        "standardDeviationMs": 0.0
+      },
+      "samplesMs": [
+        313.351584
+      ]
+    }
+  ],
+  "shutdownMs": 60.360542,
+  "complete": true,
+  "gpuSampledPeakBytes": 18493505536
+}

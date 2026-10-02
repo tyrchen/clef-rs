@@ -62,6 +62,8 @@ F32 text qualification was repeated after the projection wrapper change: 800 pro
 
 After the M5 projection change, authenticated real HTTP qualification passed again on F32 (33.81 s) and mixed F16 (25.80 s). Both release CLI/server PNG/JPEG smoke tests passed again, including oracle probabilities, exact CLI/HTTP answers, provenance, metrics and SIGTERM drain.
 
+After completing the final 158-sample performance matrix, `make verify-metal-neural` passed again. `make profile-metal` also completed both direct and managed benchmark phases under Instruments and exited normally. The final raw statistics, executable/configuration hashes, exact token/sample counts and device/host capacity bounds were checked independently.
+
 The M5 matrix pipeline uses F16 operands with F32 accumulation, disables relaxed precision and applies the existing GPU half conversion. CPU comparison tests cover complete tiles, M/N tails and unaligned K. Full default/vision/Metal build, tests, nightly format, pedantic Clippy, audit/deny, documentation and production boundary lints passed again with this projection implementation.
 
 The fused recurrence preserves the previous Metal reduction tree and is independently checked against it within 1e-7. CPU checks cover key widths 1/4/32/64/128, padded value widths, multiple heads and sequence lengths. Native F32 GQA attention checks aligned/unaligned causal lengths against the CPU reference. The optimization retains the original classifier/vision attention graph after an experimental generic SDPA route exceeded the mixed-F16 image mean gate. These test elapsed times include verification/loading and varying inputs; use [the controlled MBP measurements](clef-flash-metal-performance.md) for speedups.

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": "Instruments Metal System Trace",
+  "gitCommit": "988691fe10585674a0879ed8d50c742833032bec",
+  "binarySha256": "2369e84af5d822927e26745273396a0370f3da57d8aada3d007332d40574821c",
+  "configSha256": "58d0817f40f48f1afb565b77b1e19e7e8ee43c5a1162868f6872794ad7ff53bf",
+  "durationSeconds": 45.791882,
+  "endReason": "Target app exited",
+  "targetExitStatus": 0,
+  "benchmarkComplete": true,
+  "benchmarkReport": "instruments-diagnostic.json",
+  "threadSettings": {
+    "RAYON_NUM_THREADS": "8",
+    "CANDLE_NUM_THREADS": "8"
+  },
+  "note": "Instrumented diagnostics are excluded from the normal performance matrix. Raw trace and TOC remain outside the repository because they include unrelated system process information. The earlier 60-second baseline trace ended before its managed benchmark completed; trace interval rows are not individual kernel dispatch counts and are not used for a normalized speedup."
+}
