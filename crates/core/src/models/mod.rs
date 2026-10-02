@@ -1,5 +1,7 @@
 //! Private safe tensor implementation of the pinned Qwen3.5/CLEF graph.
 pub(crate) mod head;
+#[cfg(all(feature = "metal", target_os = "macos"))]
+mod metal;
 pub(crate) mod ops;
 pub(crate) mod qwen;
 #[cfg(feature = "vision")]

@@ -219,7 +219,7 @@ fn load_settings(path: &Path) -> Result<Settings> {
     }
     for case in &settings.cases {
         let _: Identifier = case.name.parse()?;
-        if !(256..=4096).contains(&case.tokens)
+        if !(139..=4096).contains(&case.tokens)
             || !(1..=32).contains(&case.fields)
             || !(2..=64).contains(&case.options)
             || case
@@ -548,6 +548,7 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use clef_rs_core::Error as CoreError;
+    use rstest::rstest;
     use tempfile::tempdir;
 
     use super::*;
@@ -571,16 +572,30 @@ mod tests {
         );
         Ok(())
     }
-    #[test]
-    fn test_should_validate_checked_in_benchmark_configuration() -> Result<()> {
-        let settings = load_settings(Path::new("../../examples/clef.benchmark.yaml"))?;
-        assert_eq!(settings.cases.len(), 6);
-        assert!(
-            settings
-                .cases
-                .iter()
-                .any(|case| case.fields * case.options == 256)
-        );
+    #[rstest]
+    #[case("../../examples/clef.benchmark.yaml", 6)]
+    #[case("../../examples/clef.mbp-benchmark.yaml", 8)]
+    #[case("../../examples/clef.profile.yaml", 1)]
+    fn test_should_validate_checked_in_benchmark_configuration(
+        #[case] path: &str,
+        #[case] cases: usize,
+    ) -> Result<()> {
+        let settings = load_settings(Path::new(path))?;
+        assert_eq!(settings.cases.len(), cases);
+        Ok(())
+    }
+    #[rstest]
+    #[case(138)]
+    #[case(4097)]
+    fn test_should_reject_out_of_range_workload_tokens(#[case] tokens: usize) -> Result<()> {
+        let directory = tempdir()?;
+        let path = directory.path().join("benchmark.yaml");
+        fs::write(
+            &path,
+            include_str!("../../../examples/clef.profile.yaml")
+                .replace("tokens: 256", &format!("tokens: {tokens}")),
+        )?;
+        assert!(load_settings(&path).is_err());
         Ok(())
     }
 }

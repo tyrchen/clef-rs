@@ -15,7 +15,7 @@ homepage.workspace = true
 default = ["hub"]
 hub = ["dep:reqwest", "dep:url"]
 cuda = ["candle-core/cuda", "candle-nn/cuda"]
-metal = ["candle-core/metal", "candle-nn/metal"]
+metal = ["candle-core/metal", "candle-nn/metal", "dep:candle-metal-kernels", "dep:objc2-metal"]
 vision = ["dep:image", "dep:base64", "dep:turbojpeg"]
 
 [lints]
@@ -42,6 +42,10 @@ url = { workspace = true, optional = true }
 image = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 turbojpeg = { workspace = true, optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+candle-metal-kernels = { workspace = true, optional = true }
+objc2-metal = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow.workspace = true

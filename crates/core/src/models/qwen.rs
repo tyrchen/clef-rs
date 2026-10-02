@@ -15,6 +15,8 @@ use candle_nn::{
 };
 use serde::Deserialize;
 
+#[cfg(all(feature = "metal", target_os = "macos"))]
+use super::metal::{AttentionKernel, DeltaKernel};
 use super::{
     Control,
     ops::{attention, rms, rotary},
@@ -94,6 +96,8 @@ impl ModelConfig {
 }
 #[derive(Debug)]
 struct FullAttention {
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    kernel: Option<AttentionKernel>,
     q: Linear,
     k: Linear,
     v: Linear,
@@ -103,6 +107,8 @@ struct FullAttention {
 }
 #[derive(Debug)]
 struct Delta {
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    kernel: Option<DeltaKernel>,
     qkv: Linear,
     z: Linear,
     a: Linear,
@@ -142,6 +148,14 @@ impl Backbone {
             "model.language_model.embed_tokens.weight",
             &[c.vocab_size, h],
         )?;
+        #[cfg(all(feature = "metal", target_os = "macos"))]
+        let delta_kernel = DeltaKernel::new(
+            embeddings.device(),
+            c.linear_key_head_dim,
+            c.linear_value_head_dim,
+        )?;
+        #[cfg(all(feature = "metal", target_os = "macos"))]
+        let attention_kernel = AttentionKernel::new(embeddings.device(), c.head_dim)?;
         let output_embeddings = w.take("lm_head.weight", &[c.vocab_size, h])?;
         let norm = w.take("model.language_model.norm.weight", &[h])?;
         let mut layers = Vec::with_capacity(c.num_hidden_layers);
@@ -151,6 +165,8 @@ impl Backbone {
                 let n = c.num_attention_heads * c.head_dim;
                 let kv = c.num_key_value_heads * c.head_dim;
                 Mixer::Full(FullAttention {
+                    #[cfg(all(feature = "metal", target_os = "macos"))]
+                    kernel: attention_kernel.clone(),
                     q: w.linear(&format!("{p}.self_attn.q_proj"), h, n * 2, false)?,
                     k: w.linear(&format!("{p}.self_attn.k_proj"), h, kv, false)?,
                     v: w.linear(&format!("{p}.self_attn.v_proj"), h, kv, false)?,
@@ -162,6 +178,8 @@ impl Backbone {
                 let key = c.linear_num_key_heads * c.linear_key_head_dim;
                 let value = c.linear_num_value_heads * c.linear_value_head_dim;
                 Mixer::Linear(Delta {
+                    #[cfg(all(feature = "metal", target_os = "macos"))]
+                    kernel: delta_kernel.clone(),
                     qkv: w.linear(
                         &format!("{p}.linear_attn.in_proj_qkv"),
                         h,
@@ -309,21 +327,18 @@ impl FullAttention {
             .reshape((t, c.num_key_value_heads, d))?
             .transpose(0, 1)?
             .contiguous()?;
-        let ids: Vec<u32> = (0..heads)
-            .map(|i| (i / (heads / c.num_key_value_heads)) as u32)
-            .collect();
-        let ids = Tensor::new(ids, x.device())?;
-        let out = attention(
-            &q,
-            &k.index_select(&ids, 0)?,
-            &v.index_select(&ids, 0)?,
-            true,
-            control,
-        )?
-        .to_dtype(x.dtype())?
-        .transpose(0, 1)?
-        .contiguous()?
-        .reshape((t, heads * d))?;
+        #[cfg(all(feature = "metal", target_os = "macos"))]
+        let attended = match &self.kernel {
+            Some(kernel) => kernel.forward(&q, &k, &v, control)?,
+            None => attention(&q, &k, &v, true, control)?,
+        };
+        #[cfg(not(all(feature = "metal", target_os = "macos")))]
+        let attended = attention(&q, &k, &v, true, control)?;
+        let out = attended
+            .to_dtype(x.dtype())?
+            .transpose(0, 1)?
+            .contiguous()?
+            .reshape((t, heads * d))?;
         Ok(self.out.forward(&(out * sigmoid(&gate)?)?)?)
     }
 }
@@ -383,7 +398,17 @@ impl Delta {
         let softplus = (a.clamp(0., f64::INFINITY)? + ((a.abs()?.neg()?.exp()? + 1.)?.log()?))?;
         let g = softplus.broadcast_mul(&self.a_log.to_dtype(DType::F32)?.exp()?.neg()?)?;
         let beta = sigmoid(&self.b.forward(x)?.to_dtype(DType::F32)?)?;
-        let out = delta_recurrence(&q, &k, &v, &g, &beta, control)?.to_dtype(x.dtype())?;
+        let out = delta_recurrence(
+            &q,
+            &k,
+            &v,
+            &g,
+            &beta,
+            control,
+            #[cfg(all(feature = "metal", target_os = "macos"))]
+            self.kernel.as_ref(),
+        )?
+        .to_dtype(x.dtype())?;
         let z = self.z.forward(x)?.reshape((t, heads, vd))?;
         let gated = (rms(&out, &self.norm, c.rms_norm_eps, false)?.to_dtype(DType::F32)?
             * silu(&z.to_dtype(DType::F32)?)?)?
@@ -392,13 +417,14 @@ impl Delta {
         Ok(self.out.forward(&gated)?)
     }
 }
-pub(crate) fn delta_recurrence(
+pub(super) fn delta_recurrence(
     q: &Tensor,
     k: &Tensor,
     v: &Tensor,
     g: &Tensor,
     beta: &Tensor,
     control: &Control,
+    #[cfg(all(feature = "metal", target_os = "macos"))] kernel: Option<&DeltaKernel>,
 ) -> Result<Tensor> {
     fn l2(x: &Tensor) -> Result<Tensor> {
         let n = (x.sqr()?.sum_keepdim(D::Minus1)? + 1e-6)?.sqrt()?;
@@ -412,6 +438,10 @@ pub(crate) fn delta_recurrence(
     let v = v.to_dtype(DType::F32)?;
     let beta = beta.to_dtype(DType::F32)?;
     let g = g.to_dtype(DType::F32)?;
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    if let Some(kernel) = kernel {
+        return kernel.forward(&q, &k, &v, &g, &beta, control);
+    }
     let mut state = Tensor::zeros((heads, kd, vd), DType::F32, q.device())?;
     let mut outputs = Vec::with_capacity(t);
     for i in 0..t {

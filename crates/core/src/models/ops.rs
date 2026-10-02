@@ -12,7 +12,7 @@ use candle_core::{D, DType, Tensor};
 use candle_nn::{Linear, Module};
 
 use super::Control;
-use crate::Result;
+use crate::{Error, Result};
 
 pub(crate) fn rms(x: &Tensor, weight: &Tensor, eps: f64, offset: bool) -> Result<Tensor> {
     let f = x.to_dtype(DType::F32)?;
@@ -65,6 +65,30 @@ pub(crate) fn attention(
     let q = q.to_dtype(DType::F32)?;
     let k = k.to_dtype(DType::F32)?;
     let v = v.to_dtype(DType::F32)?;
+    let kv_heads = k.dim(0)?;
+    if heads == 0
+        || kv_heads == 0
+        || heads % kv_heads != 0
+        || width == 0
+        || k.dim(2)? != width
+        || v.dim(0)? != kv_heads
+        || v.dim(1)? != kn
+        || qn == 0
+        || kn == 0
+        || (causal && qn != kn)
+    {
+        return Err(Error::InvalidRequest("attention tensor shapes".into()));
+    }
+    // The portable reference expands grouped KV heads before tiled attention.
+    let (k, v) = if heads == kv_heads {
+        (k, v)
+    } else {
+        let ids: Vec<u32> = (0..heads)
+            .map(|i| (i / (heads / kv_heads)) as u32)
+            .collect();
+        let ids = Tensor::new(ids, q.device())?;
+        (k.index_select(&ids, 0)?, v.index_select(&ids, 0)?)
+    };
     let mut outputs = Vec::new();
     for qs in (0..qn).step_by(128) {
         control.check()?;

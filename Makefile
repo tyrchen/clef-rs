@@ -119,9 +119,14 @@ CLEF_BENCH_BINARY ?= $(CLEF_TARGET_DIRECTORY)/release/examples/benchmark
 BENCHMARK_CONFIG ?= $(CURDIR)/examples/clef.benchmark.yaml
 BENCHMARK_RESULTS ?= $(CURDIR)/docs/benchmarks/flash-cpu-metal
 BENCHMARK_THREADS ?= 8
+MBP_BENCHMARK_RESULTS ?= $(CURDIR)/docs/benchmarks/flash-metal-optimized
+METAL_PROFILE_CONFIG ?= $(CURDIR)/examples/clef.profile.yaml
+METAL_PROFILE_RESULTS ?= $(CLEF_TARGET_DIRECTORY)/clef-metal-profile
+METAL_PROFILE_STAMP := $(shell date -u +%Y%m%dT%H%M%SZ)
+METAL_PROFILE_RUN = $(METAL_PROFILE_RESULTS)/flash-$(METAL_PROFILE_STAMP)
 
 verify-metal-operators:
-	$(CARGO) test -p clef-rs-core --features metal models::metal_tests --release -- --ignored
+	$(CARGO) test -p clef-rs-core --features metal models::metal --release -- --ignored
 
 verify-metal-release:
 	CLEF_RELEASE_DEVICE=metal CLEF_RELEASE_DTYPE=f32 CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' CLEF_RELEASE_ORACLE='$(CLEF_RELEASE_ORACLE)' $(CARGO) test -p clef-rs-core --features metal test_should_match_full_flash_python_probabilities --release -- --ignored --nocapture
@@ -160,4 +165,16 @@ bench-metal:
 	$(CARGO) build -p clef-rs-core --example benchmark --release --features metal
 	$(PYTHON) tests/performance/run.py --binary '$(CLEF_BENCH_BINARY)' --cache '$(CLEF_RELEASE_CACHE)' --config '$(BENCHMARK_CONFIG)' --output '$(BENCHMARK_RESULTS)' --threads '$(BENCHMARK_THREADS)' --profiles metal:f32 metal:f16
 
-.PHONY: verify-metal-operators verify-metal-release verify-metal-media verify-metal-serving verify-benchmark bench-domain bench-report bench-inference bench-cpu bench-metal
+bench-mbp:
+	$(MAKE) bench-metal BENCHMARK_CONFIG='$(CURDIR)/examples/clef.mbp-benchmark.yaml' BENCHMARK_RESULTS='$(MBP_BENCHMARK_RESULTS)'
+
+profile-metal:
+	$(CARGO) build -p clef-rs-core --example benchmark --release --features metal
+	mkdir -p '$(METAL_PROFILE_RESULTS)'
+	env -u CANDLE_METAL_COMPUTE_PER_BUFFER xctrace record --template 'Metal System Trace' --output '$(METAL_PROFILE_RUN).trace' --time-limit 120s --no-prompt --target-stdout '$(METAL_PROFILE_RUN).stdout.log' --env RAYON_NUM_THREADS=$(BENCHMARK_THREADS) --env CANDLE_NUM_THREADS=$(BENCHMARK_THREADS) --launch -- '$(CLEF_BENCH_BINARY)' --cache-dir '$(CLEF_RELEASE_CACHE)' --config '$(METAL_PROFILE_CONFIG)' --device metal --dtype f16 --output '$(METAL_PROFILE_RUN).json'
+	xctrace export --input '$(METAL_PROFILE_RUN).trace' --toc --output '$(METAL_PROFILE_RUN).toc.xml'
+
+profile-metal-kernels:
+	$(CARGO) test -p clef-rs-core --features metal test_should_profile_full_width_delta_kernel --release -- --ignored --nocapture
+
+.PHONY: verify-metal-operators verify-metal-release verify-metal-media verify-metal-serving verify-benchmark bench-domain bench-report bench-inference bench-cpu bench-metal bench-mbp profile-metal profile-metal-kernels

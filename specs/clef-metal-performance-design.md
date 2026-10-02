@@ -1,0 +1,17 @@
+# Flash Metal performance optimization design
+
+Optimize real Flash prefill on Apple Silicon while retaining the pinned artifact revision, request semantics and existing numerical limits (maximum probability error 1e-3, mean 1e-4). CPU F32 remains a portable reference. Performance claims require completed measurements on the user's MBP.
+
+## Execution
+
+Compile a checked F32 DeltaNet shader once per backbone load and share its pipeline across the 24 linear layers. Inputs are normalized F32 q/k and F32 v/decay/beta; exponentiate decay once per token/head before packing. Specialize the power-of-two key width at pipeline creation so private state arrays stay in registers. Preserve the reference block reduction tree `(0+64)+(32+96)` before the SIMD sum to protect subsequent F16 rounding boundaries. Each SIMD group owns one value column, keeps up to four key states per lane, and traverses the bounded sequence entirely on GPU. State starts at zero on every request/layer. One launch replaces the token loop; no decode cache or state survives requests. Four independent SIMD groups form a 128-thread group. Validate dimensions (1–4,096 tokens, 1–32 heads, power-of-two key width up to 128, value width up to 128), input shapes, dtype, contiguous offsets and buffer byte ranges before dispatch.
+
+Use F32 SDPA for full attention without expanding GQA KV heads. For the Flash 256-dimensional head, instantiate the pinned dependency's algorithm with 16-query/8-key tiles so its 28,928-byte shared storage fits Apple GPU limits. All 16/8 sequence alignment combinations have shared precompiled pipelines; causal masking, GQA, tail handling and the explicit 160-byte parameter ABI are verified. Classifier/vision attention and synthetic fixture widths retain the qualified tiled reference, including on Metal; only the backbone full-attention layers use the optimized pipeline. Projection precision and F32-sensitive components do not change.
+
+Candle owns buffers, command lifetimes and hazard tracking. Production Rust forbids unsafe code. Compilation, dispatch and device completion errors propagate through existing model errors. Cancellation/deadlines are checked before and after submission and between layers; queued device work completes through the existing owner-thread lifecycle. No synchronous host readback is added to normal inference.
+
+## Verification and measurement
+
+Test recurrence against CPU across SIMD/key/value tails and supported key widths, and check drift against the previous Metal reduction within 1e-7. Test causal GQA and cross attention against the tiled CPU reference, including vector, unaligned and multi-tile lengths. Verify full Flash text, long context, PNG, JPEG, CLI, authenticated HTTP, provenance and shutdown in both precisions. Run existing build/test/format/Clippy/audit/deny gates.
+
+Preserve the previous raw CPU/Metal baseline. `make bench-mbp` records all original workloads plus 139/192-token requests, with exact encoded lengths, warmups, 79 direct samples per profile and concurrency 1/2/8/16. Model processes run sequentially. Compare normal-path means on matching workloads; do not use traced or barrier-added diagnostics as throughput estimates. Keep raw samples, memory metrics, executable/workload hashes and explicit small-sample limitations. `make profile-metal` captures Instruments traces outside source control; `make profile-metal-kernels` isolates recurrence diagnostics. CPU full-weight performance is reused from the existing campaign because the CPU algorithm is unchanged.
