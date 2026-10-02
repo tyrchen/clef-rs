@@ -1,8 +1,61 @@
+.DELETE_ON_ERROR:
+
+CARGO ?= cargo
+PYTHON ?= python3
+CLEF_BINARY ?= $(shell $(CARGO) metadata --no-deps --format-version=1 | $(PYTHON) -c 'import json,sys; print(json.load(sys.stdin)["target_directory"] + "/release/clef")')
+CLEF_RELEASE_CACHE ?= $(HOME)/.cache/clef-rs
+CLEF_RELEASE_ORACLE ?= $(CURDIR)/crates/core/fixtures/release/flash-f32.json
+
 build:
-	@cargo build
+	$(CARGO) build --workspace --locked
+
+build-release:
+	$(CARGO) build --workspace --locked --release
 
 test:
-	@cargo nextest run --all-features
+	$(CARGO) test --workspace --locked
+
+verify: verify-cpu verify-artifacts
+	$(CARGO) audit --ignore RUSTSEC-2024-0436
+	$(CARGO) deny check
+
+verify-cpu: build test native-jpeg
+	$(CARGO) +nightly fmt --all -- --check
+	$(CARGO) clippy --workspace --all-targets -- -D warnings -W clippy::pedantic
+	$(CARGO) check --workspace --no-default-features
+	$(CARGO) test --workspace --features vision
+	$(CARGO) clippy --workspace --all-targets --features vision -- -D warnings -W clippy::pedantic
+	RUSTDOCFLAGS='-D warnings' $(CARGO) doc --workspace --no-deps --features vision
+
+verify-artifacts:
+	$(CARGO) test -p clef-rs-core artifacts::
+	$(CARGO) test -p clef-rs-core models::weights::
+
+verify-parity: native-jpeg
+	$(CARGO) test -p clef-rs-core models:: --features vision
+	CLEF_TOKENIZER='$(CLEF_TOKENIZER)' $(CARGO) test -p clef-rs-core test_should_match_reference_token_ids_and_spans -- --ignored
+
+verify-release:
+	CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' CLEF_RELEASE_ORACLE='$(CLEF_RELEASE_ORACLE)' $(CARGO) test -p clef-rs-core test_should_match_full_flash_python_probabilities --release -- --ignored --nocapture
+	CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' $(CARGO) test -p clef-rs-server test_should_match_embedded_decisions_over_authenticated_http --release -- --ignored --nocapture
+
+verify-cuda:
+	@echo 'CUDA is not qualified for v1. A CUDA runner and separate BF16 full-model parity report are required.'
+	@exit 1
+
+verify-metal:
+	@echo 'Metal is not qualified for v1; requests fail explicitly.'
+	@exit 1
+
+reference-env:
+	uv venv .venv-reference --python 3.12
+	uv pip sync --python .venv-reference/bin/python tests/reference/requirements.lock
+
+reference-fixtures:
+	$(PYTHON) tests/reference/generate.py
+
+reference-release:
+	$(PYTHON) tests/reference/qualify_flash.py --cache '$(CLEF_RELEASE_CACHE)' --output '$(CLEF_RELEASE_ORACLE)'
 
 release:
 	@cargo release tag --execute
@@ -14,4 +67,47 @@ release:
 update-submodule:
 	@git submodule update --init --recursive --remote
 
-.PHONY: build test check-agent-sync release update-submodule
+.PHONY: build build-release test verify verify-cpu verify-artifacts verify-parity verify-release verify-cuda verify-metal reference-env reference-fixtures reference-release release update-submodule
+
+reference-extended:
+	$(PYTHON) tests/reference/qualify_flash.py --cache '$(CLEF_RELEASE_CACHE)' --output '$(CURDIR)/crates/core/fixtures/release/flash-extended-f32.json' --extended
+
+verify-media-release: native-jpeg
+	CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' CLEF_RELEASE_ORACLE='$(CURDIR)/crates/core/fixtures/release/flash-extended-f32.json' $(CARGO) test -p clef-rs-core --features vision test_should_match_full_flash_image_and_context_probabilities --release -- --ignored --nocapture
+
+verify-serving: native-jpeg
+	$(CARGO) build -p clef-rs-server --release --features vision
+	$(PYTHON) tests/reference/serve_smoke.py --binary '$(CLEF_BINARY)' --cache '$(CLEF_RELEASE_CACHE)'
+
+.PHONY: reference-extended verify-media-release verify-serving
+
+native-jpeg: .native/jpeg-3.2.0/install/lib/libturbojpeg.a
+
+.native/libjpeg-turbo-3.2.0.tar.gz:
+	mkdir -p .native
+	curl --proto '=https' --tlsv1.2 --fail --location --max-time 120 --retry 3 https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.0/libjpeg-turbo-3.2.0.tar.gz --output '$@.partial'
+	echo '6f30092cef9fb839779646608f4ee14ae3cbac989c47fa05e841b0841f09878e  $@.partial' | shasum -a 256 --check
+	mv '$@.partial' '$@'
+
+.native/libjpeg-turbo-3.2.0/.verified: .native/libjpeg-turbo-3.2.0.tar.gz
+	echo '6f30092cef9fb839779646608f4ee14ae3cbac989c47fa05e841b0841f09878e  $<' | shasum -a 256 --check
+	tar -xzf '$<' -C .native
+	touch '$@'
+
+.native/jpeg-3.2.0/install/lib/libturbojpeg.a: .native/libjpeg-turbo-3.2.0/.verified
+	cmake -S .native/libjpeg-turbo-3.2.0 -B .native/jpeg-build -DCMAKE_BUILD_TYPE=Release -DENABLE_SHARED=OFF -DENABLE_STATIC=ON -DWITH_SIMD=OFF -DWITH_JAVA=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX='$(CURDIR)/.native/jpeg-3.2.0/install' -DCMAKE_INSTALL_LIBDIR=lib
+	cmake --build .native/jpeg-build --parallel 8
+	cmake --install .native/jpeg-build
+
+fuzz-media: native-jpeg
+	$(CARGO) test -p clef-rs-core --features vision test_should_fuzz_bounded_image_decoders --release -- --ignored
+
+.PHONY: native-jpeg fuzz-media
+
+reference-jpeg:
+	$(PYTHON) tests/reference/qualify_flash.py --cache '$(CLEF_RELEASE_CACHE)' --output '$(CURDIR)/crates/core/fixtures/release/flash-jpeg-f32.json' --jpeg
+
+verify-jpeg-release: native-jpeg
+	CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' CLEF_RELEASE_ORACLE='$(CURDIR)/crates/core/fixtures/release/flash-jpeg-f32.json' $(CARGO) test -p clef-rs-core --features vision test_should_match_full_flash_jpeg_probabilities --release -- --ignored --nocapture
+
+.PHONY: reference-jpeg verify-jpeg-release

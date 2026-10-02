@@ -1,0 +1,6 @@
+# `make native-jpeg` installs the checksum-pinned reference-compatible codec.
+[env]
+TURBOJPEG_SOURCE = { value = "explicit", force = true }
+TURBOJPEG_STATIC = { value = "1", force = true }
+TURBOJPEG_LIB_DIR = { value = ".native/jpeg-3.2.0/install/lib", relative = true, force = true }
+TURBOJPEG_INCLUDE_DIR = { value = ".native/jpeg-3.2.0/install/include", relative = true, force = true }

@@ -1,0 +1,4808 @@
+{
+  "revision": "17f0b0ad64efb65d273590632833508766b2aae6",
+  "dtype": "f32",
+  "sourceSha256": "0e304cf7c6500e8bb59bef7e2afd2c6373f82596dfb3b57d1aa93c175e2dc3a3",
+  "torch": "2.11.0",
+  "records": [
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "Checkout failed for all customers.",
+          "attempts": 0,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 311,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8917084336280823,
+          "false": 0.10829154402017593
+        },
+        "team": {
+          "billing": 0.029846349731087685,
+          "sales": 0.018479593098163605,
+          "technical": 0.9516740441322327
+        },
+        "severity": {
+          "0": 0.009191851131618023,
+          "1": 0.007129614241421223,
+          "2": 0.9836785197257996
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "An invoice needs a spelling correction.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "severity": {
+          "0": 0.041406214237213135,
+          "1": 0.9410912394523621,
+          "2": 0.017502522096037865
+        },
+        "team": {
+          "billing": 0.9672852158546448,
+          "sales": 0.018043283373117447,
+          "technical": 0.014671539887785912
+        },
+        "urgent": {
+          "true": 0.1808399260044098,
+          "false": 0.8191601037979126
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The service is working normally.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "urgent": {
+          "true": 0.004429053049534559,
+          "false": 0.995570957660675
+        },
+        "team": {
+          "billing": 0.020064206793904305,
+          "sales": 0.020390709862113,
+          "technical": 0.9595450758934021
+        },
+        "severity": {
+          "0": 0.9889199137687683,
+          "1": 0.008983734995126724,
+          "2": 0.002096351468935609
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The payment gateway is unavailable.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 298,
+      "probabilities": {
+        "severity": {
+          "0": 0.01799383945763111,
+          "1": 0.021448399871587753,
+          "2": 0.9605578184127808
+        },
+        "team": {
+          "billing": 0.025398509576916695,
+          "sales": 0.010743205435574055,
+          "technical": 0.9638583064079285
+        },
+        "urgent": {
+          "true": 0.918945848941803,
+          "false": 0.08105417340993881
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "A customer wants a different plan.",
+          "attempts": 4,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 315,
+      "probabilities": {
+        "urgent": {
+          "true": 0.03662688285112381,
+          "false": 0.9633731245994568
+        },
+        "team": {
+          "billing": 0.11870209127664566,
+          "sales": 0.8749170899391174,
+          "technical": 0.00638081319630146
+        },
+        "severity": {
+          "0": 0.28611329197883606,
+          "1": 0.7080772519111633,
+          "2": 0.00580947007983923
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "Checkout failed for all customers.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.006195587106049061,
+          "1": 0.005901339463889599,
+          "2": 0.9879030585289001
+        },
+        "team": {
+          "billing": 0.042688626796007156,
+          "sales": 0.020564187318086624,
+          "technical": 0.9367472529411316
+        },
+        "urgent": {
+          "true": 0.9522104263305664,
+          "false": 0.047789592295885086
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "An invoice needs a spelling correction.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 299,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8563111424446106,
+          "false": 0.1436888575553894
+        },
+        "team": {
+          "billing": 0.9783384203910828,
+          "sales": 0.012188251130282879,
+          "technical": 0.009473350830376148
+        },
+        "severity": {
+          "0": 0.0591157004237175,
+          "1": 0.9232223629951477,
+          "2": 0.01766192726790905
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The service is working normally.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.9906980395317078,
+          "1": 0.0061968304216861725,
+          "2": 0.0031051314435899258
+        },
+        "team": {
+          "billing": 0.02111824043095112,
+          "sales": 0.020449964329600334,
+          "technical": 0.9584317803382874
+        },
+        "urgent": {
+          "true": 0.00309172086417675,
+          "false": 0.9969082474708557
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "The payment gateway is unavailable.",
+          "attempts": 8,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 314,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8618944883346558,
+          "false": 0.13810546696186066
+        },
+        "team": {
+          "billing": 0.02307654544711113,
+          "sales": 0.00789899192750454,
+          "technical": 0.9690244197845459
+        },
+        "severity": {
+          "0": 0.02007969096302986,
+          "1": 0.026126613840460777,
+          "2": 0.9537937045097351
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "A customer wants a different plan.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 299,
+      "probabilities": {
+        "severity": {
+          "0": 0.4384230971336365,
+          "1": 0.5518418550491333,
+          "2": 0.00973509345203638
+        },
+        "team": {
+          "billing": 0.0786442905664444,
+          "sales": 0.9181160926818848,
+          "technical": 0.003239626297727227
+        },
+        "urgent": {
+          "true": 0.04001857340335846,
+          "false": 0.9599814414978027
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "Checkout failed for all customers.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "urgent": {
+          "true": 0.9645282030105591,
+          "false": 0.035471756011247635
+        },
+        "team": {
+          "billing": 0.031078128144145012,
+          "sales": 0.01424525398761034,
+          "technical": 0.954676628112793
+        },
+        "severity": {
+          "0": 0.005426149349659681,
+          "1": 0.004658681806176901,
+          "2": 0.989915132522583
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "An invoice needs a spelling correction.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "severity": {
+          "0": 0.041406214237213135,
+          "1": 0.9410912394523621,
+          "2": 0.017502522096037865
+        },
+        "team": {
+          "billing": 0.9672852158546448,
+          "sales": 0.018043283373117447,
+          "technical": 0.014671539887785912
+        },
+        "urgent": {
+          "true": 0.1808399260044098,
+          "false": 0.8191601037979126
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "The service is working normally.",
+          "attempts": 12,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 312,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8177382946014404,
+          "false": 0.18226170539855957
+        },
+        "team": {
+          "billing": 0.01241279300302267,
+          "sales": 0.007628332357853651,
+          "technical": 0.9799588918685913
+        },
+        "severity": {
+          "0": 0.9834076762199402,
+          "1": 0.014072014950215816,
+          "2": 0.002520359121263027
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The payment gateway is unavailable.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.01878422126173973,
+          "1": 0.022389883175492287,
+          "2": 0.958825945854187
+        },
+        "team": {
+          "billing": 0.026486247777938843,
+          "sales": 0.011664159595966339,
+          "technical": 0.9618496298789978
+        },
+        "urgent": {
+          "true": 0.9321953654289246,
+          "false": 0.06780468672513962
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "A customer wants a different plan.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "urgent": {
+          "true": 0.01710975170135498,
+          "false": 0.9828903079032898
+        },
+        "team": {
+          "billing": 0.06744933873414993,
+          "sales": 0.928368330001831,
+          "technical": 0.0041822874918580055
+        },
+        "severity": {
+          "0": 0.6250216364860535,
+          "1": 0.3713569939136505,
+          "2": 0.0036214275751262903
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "Checkout failed for all customers.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 298,
+      "probabilities": {
+        "severity": {
+          "0": 0.007238816935569048,
+          "1": 0.0070255221799016,
+          "2": 0.9857355952262878
+        },
+        "team": {
+          "billing": 0.04498292878270149,
+          "sales": 0.023618163540959358,
+          "technical": 0.9313989281654358
+        },
+        "urgent": {
+          "true": 0.9552656412124634,
+          "false": 0.04473429545760155
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "An invoice needs a spelling correction.",
+          "attempts": 16,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 316,
+      "probabilities": {
+        "urgent": {
+          "true": 0.17429926991462708,
+          "false": 0.8257007002830505
+        },
+        "team": {
+          "billing": 0.9700998067855835,
+          "sales": 0.015426271595060825,
+          "technical": 0.014474011026322842
+        },
+        "severity": {
+          "0": 0.04950506240129471,
+          "1": 0.942547619342804,
+          "2": 0.007947214879095554
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The service is working normally.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.9906980395317078,
+          "1": 0.0061968304216861725,
+          "2": 0.0031051314435899258
+        },
+        "team": {
+          "billing": 0.02111824043095112,
+          "sales": 0.020449964329600334,
+          "technical": 0.9584317803382874
+        },
+        "urgent": {
+          "true": 0.00309172086417675,
+          "false": 0.9969082474708557
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The payment gateway is unavailable.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 298,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8424190282821655,
+          "false": 0.15758095681667328
+        },
+        "team": {
+          "billing": 0.013953707180917263,
+          "sales": 0.005802899599075317,
+          "technical": 0.9802433848381042
+        },
+        "severity": {
+          "0": 0.023575907573103905,
+          "1": 0.02679254859685898,
+          "2": 0.9496315121650696
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "A customer wants a different plan.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "severity": {
+          "0": 0.4518274962902069,
+          "1": 0.5375629663467407,
+          "2": 0.01060950756072998
+        },
+        "team": {
+          "billing": 0.08070514351129532,
+          "sales": 0.9149357080459595,
+          "technical": 0.004359158221632242
+        },
+        "urgent": {
+          "true": 0.020111504942178726,
+          "false": 0.9798884987831116
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "Checkout failed for all customers.",
+          "attempts": 20,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 315,
+      "probabilities": {
+        "urgent": {
+          "true": 0.9524974822998047,
+          "false": 0.047502558678388596
+        },
+        "team": {
+          "billing": 0.03882843255996704,
+          "sales": 0.021378012374043465,
+          "technical": 0.939793586730957
+        },
+        "severity": {
+          "0": 0.007330210413783789,
+          "1": 0.006530498154461384,
+          "2": 0.9861393570899963
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "An invoice needs a spelling correction.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 299,
+      "probabilities": {
+        "severity": {
+          "0": 0.04266313835978508,
+          "1": 0.9389499425888062,
+          "2": 0.018386835232377052
+        },
+        "team": {
+          "billing": 0.9715187549591064,
+          "sales": 0.01587704010307789,
+          "technical": 0.01260414533317089
+        },
+        "urgent": {
+          "true": 0.19613032042980194,
+          "false": 0.8038697242736816
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The service is working normally.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "urgent": {
+          "true": 0.004429053049534559,
+          "false": 0.995570957660675
+        },
+        "team": {
+          "billing": 0.020064206793904305,
+          "sales": 0.020390709862113,
+          "technical": 0.9595450758934021
+        },
+        "severity": {
+          "0": 0.9889199137687683,
+          "1": 0.008983734995126724,
+          "2": 0.002096351468935609
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The payment gateway is unavailable.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.01878422126173973,
+          "1": 0.022389883175492287,
+          "2": 0.958825945854187
+        },
+        "team": {
+          "billing": 0.026486247777938843,
+          "sales": 0.011664159595966339,
+          "technical": 0.9618496298789978
+        },
+        "urgent": {
+          "true": 0.9321953654289246,
+          "false": 0.06780468672513962
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "A customer wants a different plan.",
+          "attempts": 24,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 313,
+      "probabilities": {
+        "urgent": {
+          "true": 0.7512646913528442,
+          "false": 0.24873533844947815
+        },
+        "team": {
+          "billing": 0.13923169672489166,
+          "sales": 0.851165771484375,
+          "technical": 0.009602556005120277
+        },
+        "severity": {
+          "0": 0.31501010060310364,
+          "1": 0.6735780239105225,
+          "2": 0.011411868035793304
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "Checkout failed for all customers.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.006195587106049061,
+          "1": 0.005901339463889599,
+          "2": 0.9879030585289001
+        },
+        "team": {
+          "billing": 0.042688626796007156,
+          "sales": 0.020564187318086624,
+          "technical": 0.9367472529411316
+        },
+        "urgent": {
+          "true": 0.9522104263305664,
+          "false": 0.047789592295885086
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "An invoice needs a spelling correction.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "urgent": {
+          "true": 0.21958696842193604,
+          "false": 0.780413031578064
+        },
+        "team": {
+          "billing": 0.9672852158546448,
+          "sales": 0.017898378893733025,
+          "technical": 0.014816408976912498
+        },
+        "severity": {
+          "0": 0.0658653974533081,
+          "1": 0.9229767322540283,
+          "2": 0.01115786749869585
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The service is working normally.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 298,
+      "probabilities": {
+        "severity": {
+          "0": 0.9917513728141785,
+          "1": 0.00549263646826148,
+          "2": 0.0027559171430766582
+        },
+        "team": {
+          "billing": 0.021135486662387848,
+          "sales": 0.02023095078766346,
+          "technical": 0.958633542060852
+        },
+        "urgent": {
+          "true": 0.0926632434129715,
+          "false": 0.9073367714881897
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "The payment gateway is unavailable.",
+          "attempts": 28,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 315,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8529665470123291,
+          "false": 0.1470334678888321
+        },
+        "team": {
+          "billing": 0.024166006594896317,
+          "sales": 0.008590977638959885,
+          "technical": 0.967242956161499
+        },
+        "severity": {
+          "0": 0.02553006447851658,
+          "1": 0.028400106355547905,
+          "2": 0.9460698366165161
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "A customer wants a different plan.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "severity": {
+          "0": 0.4518274962902069,
+          "1": 0.5375629663467407,
+          "2": 0.01060950756072998
+        },
+        "team": {
+          "billing": 0.08070514351129532,
+          "sales": 0.9149357080459595,
+          "technical": 0.004359158221632242
+        },
+        "urgent": {
+          "true": 0.020111504942178726,
+          "false": 0.9798884987831116
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "Checkout failed for all customers.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 298,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8947026133537292,
+          "false": 0.10529738664627075
+        },
+        "team": {
+          "billing": 0.02356775291264057,
+          "sales": 0.012088089250028133,
+          "technical": 0.9643441438674927
+        },
+        "severity": {
+          "0": 0.007088704500347376,
+          "1": 0.00659038545563817,
+          "2": 0.9863209128379822
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "An invoice needs a spelling correction.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "severity": {
+          "0": 0.041406214237213135,
+          "1": 0.9410912394523621,
+          "2": 0.017502522096037865
+        },
+        "team": {
+          "billing": 0.9672852158546448,
+          "sales": 0.018043283373117447,
+          "technical": 0.014671539887785912
+        },
+        "urgent": {
+          "true": 0.1808399260044098,
+          "false": 0.8191601037979126
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "The service is working normally.",
+          "attempts": 32,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 315,
+      "probabilities": {
+        "urgent": {
+          "true": 0.005148806143552065,
+          "false": 0.9948511719703674
+        },
+        "team": {
+          "billing": 0.01673405058681965,
+          "sales": 0.012551370076835155,
+          "technical": 0.9707146286964417
+        },
+        "severity": {
+          "0": 0.9811025261878967,
+          "1": 0.015613120049238205,
+          "2": 0.003284408012405038
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The payment gateway is unavailable.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 298,
+      "probabilities": {
+        "severity": {
+          "0": 0.01799383945763111,
+          "1": 0.021448399871587753,
+          "2": 0.9605578184127808
+        },
+        "team": {
+          "billing": 0.025398509576916695,
+          "sales": 0.010743205435574055,
+          "technical": 0.9638583064079285
+        },
+        "urgent": {
+          "true": 0.918945848941803,
+          "false": 0.08105417340993881
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "A customer wants a different plan.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "urgent": {
+          "true": 0.01710975170135498,
+          "false": 0.9828903079032898
+        },
+        "team": {
+          "billing": 0.06744933873414993,
+          "sales": 0.928368330001831,
+          "technical": 0.0041822874918580055
+        },
+        "severity": {
+          "0": 0.6250216364860535,
+          "1": 0.3713569939136505,
+          "2": 0.0036214275751262903
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "Checkout failed for all customers.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.006195587106049061,
+          "1": 0.005901339463889599,
+          "2": 0.9879030585289001
+        },
+        "team": {
+          "billing": 0.042688626796007156,
+          "sales": 0.020564187318086624,
+          "technical": 0.9367472529411316
+        },
+        "urgent": {
+          "true": 0.9522104263305664,
+          "false": 0.047789592295885086
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "An invoice needs a spelling correction.",
+          "attempts": 36,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 313,
+      "probabilities": {
+        "urgent": {
+          "true": 0.7497434616088867,
+          "false": 0.25025659799575806
+        },
+        "team": {
+          "billing": 0.9719473123550415,
+          "sales": 0.013960766606032848,
+          "technical": 0.014091849327087402
+        },
+        "severity": {
+          "0": 0.03637639805674553,
+          "1": 0.9525246024131775,
+          "2": 0.011099010705947876
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The service is working normally.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.9906980395317078,
+          "1": 0.0061968304216861725,
+          "2": 0.0031051314435899258
+        },
+        "team": {
+          "billing": 0.02111824043095112,
+          "sales": 0.020449964329600334,
+          "technical": 0.9584317803382874
+        },
+        "urgent": {
+          "true": 0.00309172086417675,
+          "false": 0.9969082474708557
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The payment gateway is unavailable.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8825331330299377,
+          "false": 0.11746687442064285
+        },
+        "team": {
+          "billing": 0.018233872950077057,
+          "sales": 0.006638903170824051,
+          "technical": 0.9751272201538086
+        },
+        "severity": {
+          "0": 0.025933871045708656,
+          "1": 0.029634511098265648,
+          "2": 0.9444316625595093
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "A customer wants a different plan.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 299,
+      "probabilities": {
+        "severity": {
+          "0": 0.4384230971336365,
+          "1": 0.5518418550491333,
+          "2": 0.00973509345203638
+        },
+        "team": {
+          "billing": 0.0786442905664444,
+          "sales": 0.9181160926818848,
+          "technical": 0.003239626297727227
+        },
+        "urgent": {
+          "true": 0.04001857340335846,
+          "false": 0.9599814414978027
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "Checkout failed for all customers.",
+          "attempts": 40,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 315,
+      "probabilities": {
+        "urgent": {
+          "true": 0.9538508653640747,
+          "false": 0.046149104833602905
+        },
+        "team": {
+          "billing": 0.037295952439308167,
+          "sales": 0.020729435607790947,
+          "technical": 0.9419746398925781
+        },
+        "severity": {
+          "0": 0.0068824682384729385,
+          "1": 0.005927077494561672,
+          "2": 0.9871904253959656
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "An invoice needs a spelling correction.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "severity": {
+          "0": 0.041406214237213135,
+          "1": 0.9410912394523621,
+          "2": 0.017502522096037865
+        },
+        "team": {
+          "billing": 0.9672852158546448,
+          "sales": 0.018043283373117447,
+          "technical": 0.014671539887785912
+        },
+        "urgent": {
+          "true": 0.1808399260044098,
+          "false": 0.8191601037979126
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The service is working normally.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 298,
+      "probabilities": {
+        "urgent": {
+          "true": 0.9046217203140259,
+          "false": 0.09537825733423233
+        },
+        "team": {
+          "billing": 0.01630008965730667,
+          "sales": 0.015224212780594826,
+          "technical": 0.9684756994247437
+        },
+        "severity": {
+          "0": 0.9914802312850952,
+          "1": 0.00687295850366354,
+          "2": 0.0016468316316604614
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The payment gateway is unavailable.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.01878422126173973,
+          "1": 0.022389883175492287,
+          "2": 0.958825945854187
+        },
+        "team": {
+          "billing": 0.026486247777938843,
+          "sales": 0.011664159595966339,
+          "technical": 0.9618496298789978
+        },
+        "urgent": {
+          "true": 0.9321953654289246,
+          "false": 0.06780468672513962
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "A customer wants a different plan.",
+          "attempts": 44,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 316,
+      "probabilities": {
+        "urgent": {
+          "true": 0.02434014156460762,
+          "false": 0.9756598472595215
+        },
+        "team": {
+          "billing": 0.14357341825962067,
+          "sales": 0.8493892550468445,
+          "technical": 0.007037293631583452
+        },
+        "severity": {
+          "0": 0.3644639551639557,
+          "1": 0.6296793222427368,
+          "2": 0.005856737494468689
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "Checkout failed for all customers.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 298,
+      "probabilities": {
+        "severity": {
+          "0": 0.007238816935569048,
+          "1": 0.0070255221799016,
+          "2": 0.9857355952262878
+        },
+        "team": {
+          "billing": 0.04498292878270149,
+          "sales": 0.023618163540959358,
+          "technical": 0.9313989281654358
+        },
+        "urgent": {
+          "true": 0.9552656412124634,
+          "false": 0.04473429545760155
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "An invoice needs a spelling correction.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "urgent": {
+          "true": 0.21958696842193604,
+          "false": 0.780413031578064
+        },
+        "team": {
+          "billing": 0.9672852158546448,
+          "sales": 0.017898378893733025,
+          "technical": 0.014816408976912498
+        },
+        "severity": {
+          "0": 0.0658653974533081,
+          "1": 0.9229767322540283,
+          "2": 0.01115786749869585
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The service is working normally.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.9906980395317078,
+          "1": 0.0061968304216861725,
+          "2": 0.0031051314435899258
+        },
+        "team": {
+          "billing": 0.02111824043095112,
+          "sales": 0.020449964329600334,
+          "technical": 0.9584317803382874
+        },
+        "urgent": {
+          "true": 0.00309172086417675,
+          "false": 0.9969082474708557
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "The payment gateway is unavailable.",
+          "attempts": 48,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 312,
+      "probabilities": {
+        "urgent": {
+          "true": 0.7423827052116394,
+          "false": 0.25761735439300537
+        },
+        "team": {
+          "billing": 0.018596341833472252,
+          "sales": 0.007493902463465929,
+          "technical": 0.9739097356796265
+        },
+        "severity": {
+          "0": 0.01991499401628971,
+          "1": 0.021733582019805908,
+          "2": 0.9583514332771301
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "A customer wants a different plan.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "severity": {
+          "0": 0.4518274962902069,
+          "1": 0.5375629663467407,
+          "2": 0.01060950756072998
+        },
+        "team": {
+          "billing": 0.08070514351129532,
+          "sales": 0.9149357080459595,
+          "technical": 0.004359158221632242
+        },
+        "urgent": {
+          "true": 0.020111504942178726,
+          "false": 0.9798884987831116
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "Checkout failed for all customers.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "urgent": {
+          "true": 0.9645282030105591,
+          "false": 0.035471756011247635
+        },
+        "team": {
+          "billing": 0.031078128144145012,
+          "sales": 0.01424525398761034,
+          "technical": 0.954676628112793
+        },
+        "severity": {
+          "0": 0.005426149349659681,
+          "1": 0.004658681806176901,
+          "2": 0.989915132522583
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "An invoice needs a spelling correction.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 299,
+      "probabilities": {
+        "severity": {
+          "0": 0.04266313835978508,
+          "1": 0.9389499425888062,
+          "2": 0.018386835232377052
+        },
+        "team": {
+          "billing": 0.9715187549591064,
+          "sales": 0.01587704010307789,
+          "technical": 0.01260414533317089
+        },
+        "urgent": {
+          "true": 0.19613032042980194,
+          "false": 0.8038697242736816
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "The service is working normally.",
+          "attempts": 52,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 315,
+      "probabilities": {
+        "urgent": {
+          "true": 0.004923064261674881,
+          "false": 0.9950769543647766
+        },
+        "team": {
+          "billing": 0.017367148771882057,
+          "sales": 0.01311804074794054,
+          "technical": 0.9695148468017578
+        },
+        "severity": {
+          "0": 0.9810715317726135,
+          "1": 0.01549496315419674,
+          "2": 0.0034334990195930004
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The payment gateway is unavailable.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.01878422126173973,
+          "1": 0.022389883175492287,
+          "2": 0.958825945854187
+        },
+        "team": {
+          "billing": 0.026486247777938843,
+          "sales": 0.011664159595966339,
+          "technical": 0.9618496298789978
+        },
+        "urgent": {
+          "true": 0.9321953654289246,
+          "false": 0.06780468672513962
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "A customer wants a different plan.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 299,
+      "probabilities": {
+        "urgent": {
+          "true": 0.7039269804954529,
+          "false": 0.29607298970222473
+        },
+        "team": {
+          "billing": 0.08160102367401123,
+          "sales": 0.9144411087036133,
+          "technical": 0.003957902546972036
+        },
+        "severity": {
+          "0": 0.5751312375068665,
+          "1": 0.4205428659915924,
+          "2": 0.004325919318944216
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "Checkout failed for all customers.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.006195587106049061,
+          "1": 0.005901339463889599,
+          "2": 0.9879030585289001
+        },
+        "team": {
+          "billing": 0.042688626796007156,
+          "sales": 0.020564187318086624,
+          "technical": 0.9367472529411316
+        },
+        "urgent": {
+          "true": 0.9522104263305664,
+          "false": 0.047789592295885086
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "An invoice needs a spelling correction.",
+          "attempts": 56,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 316,
+      "probabilities": {
+        "urgent": {
+          "true": 0.18010525405406952,
+          "false": 0.8198947310447693
+        },
+        "team": {
+          "billing": 0.9721364378929138,
+          "sales": 0.014306032098829746,
+          "technical": 0.01355758961290121
+        },
+        "severity": {
+          "0": 0.04896097257733345,
+          "1": 0.9420632719993591,
+          "2": 0.008975785225629807
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The service is working normally.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 298,
+      "probabilities": {
+        "severity": {
+          "0": 0.9917513728141785,
+          "1": 0.00549263646826148,
+          "2": 0.0027559171430766582
+        },
+        "team": {
+          "billing": 0.021135486662387848,
+          "sales": 0.02023095078766346,
+          "technical": 0.958633542060852
+        },
+        "urgent": {
+          "true": 0.0926632434129715,
+          "false": 0.9073367714881897
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The payment gateway is unavailable.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8825331330299377,
+          "false": 0.11746687442064285
+        },
+        "team": {
+          "billing": 0.018233872950077057,
+          "sales": 0.006638903170824051,
+          "technical": 0.9751272201538086
+        },
+        "severity": {
+          "0": 0.025933871045708656,
+          "1": 0.029634511098265648,
+          "2": 0.9444316625595093
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "A customer wants a different plan.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "severity": {
+          "0": 0.4518274962902069,
+          "1": 0.5375629663467407,
+          "2": 0.01060950756072998
+        },
+        "team": {
+          "billing": 0.08070514351129532,
+          "sales": 0.9149357080459595,
+          "technical": 0.004359158221632242
+        },
+        "urgent": {
+          "true": 0.020111504942178726,
+          "false": 0.9798884987831116
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "Checkout failed for all customers.",
+          "attempts": 60,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 312,
+      "probabilities": {
+        "urgent": {
+          "true": 0.889110267162323,
+          "false": 0.11088971793651581
+        },
+        "team": {
+          "billing": 0.031140783801674843,
+          "sales": 0.01711384579539299,
+          "technical": 0.9517454504966736
+        },
+        "severity": {
+          "0": 0.005600464064627886,
+          "1": 0.004759899340569973,
+          "2": 0.9896396398544312
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "An invoice needs a spelling correction.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "severity": {
+          "0": 0.041406214237213135,
+          "1": 0.9410912394523621,
+          "2": 0.017502522096037865
+        },
+        "team": {
+          "billing": 0.9672852158546448,
+          "sales": 0.018043283373117447,
+          "technical": 0.014671539887785912
+        },
+        "urgent": {
+          "true": 0.1808399260044098,
+          "false": 0.8191601037979126
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The service is working normally.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "urgent": {
+          "true": 0.004429053049534559,
+          "false": 0.995570957660675
+        },
+        "team": {
+          "billing": 0.020064206793904305,
+          "sales": 0.020390709862113,
+          "technical": 0.9595450758934021
+        },
+        "severity": {
+          "0": 0.9889199137687683,
+          "1": 0.008983734995126724,
+          "2": 0.002096351468935609
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The payment gateway is unavailable.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 298,
+      "probabilities": {
+        "severity": {
+          "0": 0.01799383945763111,
+          "1": 0.021448399871587753,
+          "2": 0.9605578184127808
+        },
+        "team": {
+          "billing": 0.025398509576916695,
+          "sales": 0.010743205435574055,
+          "technical": 0.9638583064079285
+        },
+        "urgent": {
+          "true": 0.918945848941803,
+          "false": 0.08105417340993881
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "A customer wants a different plan.",
+          "attempts": 64,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 316,
+      "probabilities": {
+        "urgent": {
+          "true": 0.02818089909851551,
+          "false": 0.9718190431594849
+        },
+        "team": {
+          "billing": 0.13310137391090393,
+          "sales": 0.8601580262184143,
+          "technical": 0.0067406389862298965
+        },
+        "severity": {
+          "0": 0.37313663959503174,
+          "1": 0.6212870478630066,
+          "2": 0.005576307885348797
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "Checkout failed for all customers.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.006195587106049061,
+          "1": 0.005901339463889599,
+          "2": 0.9879030585289001
+        },
+        "team": {
+          "billing": 0.042688626796007156,
+          "sales": 0.020564187318086624,
+          "technical": 0.9367472529411316
+        },
+        "urgent": {
+          "true": 0.9522104263305664,
+          "false": 0.047789592295885086
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "An invoice needs a spelling correction.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 299,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8563111424446106,
+          "false": 0.1436888575553894
+        },
+        "team": {
+          "billing": 0.9783384203910828,
+          "sales": 0.012188251130282879,
+          "technical": 0.009473350830376148
+        },
+        "severity": {
+          "0": 0.0591157004237175,
+          "1": 0.9232223629951477,
+          "2": 0.01766192726790905
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The service is working normally.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.9906980395317078,
+          "1": 0.0061968304216861725,
+          "2": 0.0031051314435899258
+        },
+        "team": {
+          "billing": 0.02111824043095112,
+          "sales": 0.020449964329600334,
+          "technical": 0.9584317803382874
+        },
+        "urgent": {
+          "true": 0.00309172086417675,
+          "false": 0.9969082474708557
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "The payment gateway is unavailable.",
+          "attempts": 68,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 315,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8521179556846619,
+          "false": 0.14788199961185455
+        },
+        "team": {
+          "billing": 0.02282649651169777,
+          "sales": 0.00847590807825327,
+          "technical": 0.9686975479125977
+        },
+        "severity": {
+          "0": 0.025340985506772995,
+          "1": 0.02767430618405342,
+          "2": 0.9469846487045288
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "A customer wants a different plan.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 299,
+      "probabilities": {
+        "severity": {
+          "0": 0.4384230971336365,
+          "1": 0.5518418550491333,
+          "2": 0.00973509345203638
+        },
+        "team": {
+          "billing": 0.0786442905664444,
+          "sales": 0.9181160926818848,
+          "technical": 0.003239626297727227
+        },
+        "urgent": {
+          "true": 0.04001857340335846,
+          "false": 0.9599814414978027
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "Checkout failed for all customers.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "urgent": {
+          "true": 0.9645282030105591,
+          "false": 0.035471756011247635
+        },
+        "team": {
+          "billing": 0.031078128144145012,
+          "sales": 0.01424525398761034,
+          "technical": 0.954676628112793
+        },
+        "severity": {
+          "0": 0.005426149349659681,
+          "1": 0.004658681806176901,
+          "2": 0.989915132522583
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "An invoice needs a spelling correction.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "severity": {
+          "0": 0.041406214237213135,
+          "1": 0.9410912394523621,
+          "2": 0.017502522096037865
+        },
+        "team": {
+          "billing": 0.9672852158546448,
+          "sales": 0.018043283373117447,
+          "technical": 0.014671539887785912
+        },
+        "urgent": {
+          "true": 0.1808399260044098,
+          "false": 0.8191601037979126
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "The service is working normally.",
+          "attempts": 72,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 312,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8383704423904419,
+          "false": 0.1616295576095581
+        },
+        "team": {
+          "billing": 0.013169044628739357,
+          "sales": 0.00887167640030384,
+          "technical": 0.9779592752456665
+        },
+        "severity": {
+          "0": 0.9875253438949585,
+          "1": 0.009760630317032337,
+          "2": 0.0027141256723552942
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The payment gateway is unavailable.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.01878422126173973,
+          "1": 0.022389883175492287,
+          "2": 0.958825945854187
+        },
+        "team": {
+          "billing": 0.026486247777938843,
+          "sales": 0.011664159595966339,
+          "technical": 0.9618496298789978
+        },
+        "urgent": {
+          "true": 0.9321953654289246,
+          "false": 0.06780468672513962
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "A customer wants a different plan.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "urgent": {
+          "true": 0.01710975170135498,
+          "false": 0.9828903079032898
+        },
+        "team": {
+          "billing": 0.06744933873414993,
+          "sales": 0.928368330001831,
+          "technical": 0.0041822874918580055
+        },
+        "severity": {
+          "0": 0.6250216364860535,
+          "1": 0.3713569939136505,
+          "2": 0.0036214275751262903
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "Checkout failed for all customers.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 298,
+      "probabilities": {
+        "severity": {
+          "0": 0.007238816935569048,
+          "1": 0.0070255221799016,
+          "2": 0.9857355952262878
+        },
+        "team": {
+          "billing": 0.04498292878270149,
+          "sales": 0.023618163540959358,
+          "technical": 0.9313989281654358
+        },
+        "urgent": {
+          "true": 0.9552656412124634,
+          "false": 0.04473429545760155
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "An invoice needs a spelling correction.",
+          "attempts": 76,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 316,
+      "probabilities": {
+        "urgent": {
+          "true": 0.18344004452228546,
+          "false": 0.8165599703788757
+        },
+        "team": {
+          "billing": 0.9711479544639587,
+          "sales": 0.015006178990006447,
+          "technical": 0.013845873065292835
+        },
+        "severity": {
+          "0": 0.04788917675614357,
+          "1": 0.9432486295700073,
+          "2": 0.008862124755978584
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The service is working normally.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.9906980395317078,
+          "1": 0.0061968304216861725,
+          "2": 0.0031051314435899258
+        },
+        "team": {
+          "billing": 0.02111824043095112,
+          "sales": 0.020449964329600334,
+          "technical": 0.9584317803382874
+        },
+        "urgent": {
+          "true": 0.00309172086417675,
+          "false": 0.9969082474708557
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The payment gateway is unavailable.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 298,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8424190282821655,
+          "false": 0.15758095681667328
+        },
+        "team": {
+          "billing": 0.013953707180917263,
+          "sales": 0.005802899599075317,
+          "technical": 0.9802433848381042
+        },
+        "severity": {
+          "0": 0.023575907573103905,
+          "1": 0.02679254859685898,
+          "2": 0.9496315121650696
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "A customer wants a different plan.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "severity": {
+          "0": 0.4518274962902069,
+          "1": 0.5375629663467407,
+          "2": 0.01060950756072998
+        },
+        "team": {
+          "billing": 0.08070514351129532,
+          "sales": 0.9149357080459595,
+          "technical": 0.004359158221632242
+        },
+        "urgent": {
+          "true": 0.020111504942178726,
+          "false": 0.9798884987831116
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "Checkout failed for all customers.",
+          "attempts": 80,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 315,
+      "probabilities": {
+        "urgent": {
+          "true": 0.9524371027946472,
+          "false": 0.047562919557094574
+        },
+        "team": {
+          "billing": 0.03688567131757736,
+          "sales": 0.020542044192552567,
+          "technical": 0.942572295665741
+        },
+        "severity": {
+          "0": 0.006857016123831272,
+          "1": 0.00595613569021225,
+          "2": 0.9871867895126343
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "An invoice needs a spelling correction.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 299,
+      "probabilities": {
+        "severity": {
+          "0": 0.04266313835978508,
+          "1": 0.9389499425888062,
+          "2": 0.018386835232377052
+        },
+        "team": {
+          "billing": 0.9715187549591064,
+          "sales": 0.01587704010307789,
+          "technical": 0.01260414533317089
+        },
+        "urgent": {
+          "true": 0.19613032042980194,
+          "false": 0.8038697242736816
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The service is working normally.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "urgent": {
+          "true": 0.004429053049534559,
+          "false": 0.995570957660675
+        },
+        "team": {
+          "billing": 0.020064206793904305,
+          "sales": 0.020390709862113,
+          "technical": 0.9595450758934021
+        },
+        "severity": {
+          "0": 0.9889199137687683,
+          "1": 0.008983734995126724,
+          "2": 0.002096351468935609
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The payment gateway is unavailable.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.01878422126173973,
+          "1": 0.022389883175492287,
+          "2": 0.958825945854187
+        },
+        "team": {
+          "billing": 0.026486247777938843,
+          "sales": 0.011664159595966339,
+          "technical": 0.9618496298789978
+        },
+        "urgent": {
+          "true": 0.9321953654289246,
+          "false": 0.06780468672513962
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "A customer wants a different plan.",
+          "attempts": 84,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 313,
+      "probabilities": {
+        "urgent": {
+          "true": 0.7441350817680359,
+          "false": 0.2558649480342865
+        },
+        "team": {
+          "billing": 0.15523657202720642,
+          "sales": 0.836114227771759,
+          "technical": 0.008649189956486225
+        },
+        "severity": {
+          "0": 0.3136920630931854,
+          "1": 0.6782041192054749,
+          "2": 0.008103717118501663
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "Checkout failed for all customers.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.006195587106049061,
+          "1": 0.005901339463889599,
+          "2": 0.9879030585289001
+        },
+        "team": {
+          "billing": 0.042688626796007156,
+          "sales": 0.020564187318086624,
+          "technical": 0.9367472529411316
+        },
+        "urgent": {
+          "true": 0.9522104263305664,
+          "false": 0.047789592295885086
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "An invoice needs a spelling correction.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "urgent": {
+          "true": 0.21958696842193604,
+          "false": 0.780413031578064
+        },
+        "team": {
+          "billing": 0.9672852158546448,
+          "sales": 0.017898378893733025,
+          "technical": 0.014816408976912498
+        },
+        "severity": {
+          "0": 0.0658653974533081,
+          "1": 0.9229767322540283,
+          "2": 0.01115786749869585
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The service is working normally.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 298,
+      "probabilities": {
+        "severity": {
+          "0": 0.9917513728141785,
+          "1": 0.00549263646826148,
+          "2": 0.0027559171430766582
+        },
+        "team": {
+          "billing": 0.021135486662387848,
+          "sales": 0.02023095078766346,
+          "technical": 0.958633542060852
+        },
+        "urgent": {
+          "true": 0.0926632434129715,
+          "false": 0.9073367714881897
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "The payment gateway is unavailable.",
+          "attempts": 88,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 315,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8474767804145813,
+          "false": 0.1525231897830963
+        },
+        "team": {
+          "billing": 0.022267445921897888,
+          "sales": 0.008495558053255081,
+          "technical": 0.9692370295524597
+        },
+        "severity": {
+          "0": 0.02375161275267601,
+          "1": 0.024756889790296555,
+          "2": 0.9514915347099304
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "A customer wants a different plan.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "severity": {
+          "0": 0.4518274962902069,
+          "1": 0.5375629663467407,
+          "2": 0.01060950756072998
+        },
+        "team": {
+          "billing": 0.08070514351129532,
+          "sales": 0.9149357080459595,
+          "technical": 0.004359158221632242
+        },
+        "urgent": {
+          "true": 0.020111504942178726,
+          "false": 0.9798884987831116
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "Checkout failed for all customers.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 298,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8947026133537292,
+          "false": 0.10529738664627075
+        },
+        "team": {
+          "billing": 0.02356775291264057,
+          "sales": 0.012088089250028133,
+          "technical": 0.9643441438674927
+        },
+        "severity": {
+          "0": 0.007088704500347376,
+          "1": 0.00659038545563817,
+          "2": 0.9863209128379822
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "An invoice needs a spelling correction.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "severity": {
+          "0": 0.041406214237213135,
+          "1": 0.9410912394523621,
+          "2": 0.017502522096037865
+        },
+        "team": {
+          "billing": 0.9672852158546448,
+          "sales": 0.018043283373117447,
+          "technical": 0.014671539887785912
+        },
+        "urgent": {
+          "true": 0.1808399260044098,
+          "false": 0.8191601037979126
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "The service is working normally.",
+          "attempts": 92,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 315,
+      "probabilities": {
+        "urgent": {
+          "true": 0.005045440047979355,
+          "false": 0.994954526424408
+        },
+        "team": {
+          "billing": 0.018558496609330177,
+          "sales": 0.01448822021484375,
+          "technical": 0.9669532775878906
+        },
+        "severity": {
+          "0": 0.9838175773620605,
+          "1": 0.012493709102272987,
+          "2": 0.0036886718589812517
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The payment gateway is unavailable.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 298,
+      "probabilities": {
+        "severity": {
+          "0": 0.01799383945763111,
+          "1": 0.021448399871587753,
+          "2": 0.9605578184127808
+        },
+        "team": {
+          "billing": 0.025398509576916695,
+          "sales": 0.010743205435574055,
+          "technical": 0.9638583064079285
+        },
+        "urgent": {
+          "true": 0.918945848941803,
+          "false": 0.08105417340993881
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "A customer wants a different plan.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 302,
+      "probabilities": {
+        "urgent": {
+          "true": 0.01710975170135498,
+          "false": 0.9828903079032898
+        },
+        "team": {
+          "billing": 0.06744933873414993,
+          "sales": 0.928368330001831,
+          "technical": 0.0041822874918580055
+        },
+        "severity": {
+          "0": 0.6250216364860535,
+          "1": 0.3713569939136505,
+          "2": 0.0036214275751262903
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "Checkout failed for all customers.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.006195587106049061,
+          "1": 0.005901339463889599,
+          "2": 0.9879030585289001
+        },
+        "team": {
+          "billing": 0.042688626796007156,
+          "sales": 0.020564187318086624,
+          "technical": 0.9367472529411316
+        },
+        "urgent": {
+          "true": 0.9522104263305664,
+          "false": 0.047789592295885086
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": {
+          "message": "An invoice needs a spelling correction.",
+          "attempts": 96,
+          "locale": "中文"
+        },
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 313,
+      "probabilities": {
+        "urgent": {
+          "true": 0.7543632984161377,
+          "false": 0.2456367015838623
+        },
+        "team": {
+          "billing": 0.9709067344665527,
+          "sales": 0.014421354979276657,
+          "technical": 0.014671876095235348
+        },
+        "severity": {
+          "0": 0.03677356243133545,
+          "1": 0.9505522847175598,
+          "2": 0.012674126774072647
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The service is working normally.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "severity": {
+          "0": 0.9906980395317078,
+          "1": 0.0061968304216861725,
+          "2": 0.0031051314435899258
+        },
+        "team": {
+          "billing": 0.02111824043095112,
+          "sales": 0.020449964329600334,
+          "technical": 0.9584317803382874
+        },
+        "urgent": {
+          "true": 0.00309172086417675,
+          "false": 0.9969082474708557
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "The payment gateway is unavailable.",
+        "questions": {
+          "urgent": {
+            "type": "noul",
+            "instructions": "Is this urgent?"
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          }
+        }
+      },
+      "inputTokens": 301,
+      "probabilities": {
+        "urgent": {
+          "true": 0.8825331330299377,
+          "false": 0.11746687442064285
+        },
+        "team": {
+          "billing": 0.018233872950077057,
+          "sales": 0.006638903170824051,
+          "technical": 0.9751272201538086
+        },
+        "severity": {
+          "0": 0.025933871045708656,
+          "1": 0.029634511098265648,
+          "2": 0.9444316625595093
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "clef-flash",
+        "state": "A customer wants a different plan.",
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe?",
+            "criteria": [
+              "None",
+              "Minor",
+              "Critical"
+            ]
+          },
+          "team": {
+            "type": "choice",
+            "instructions": "Which team?",
+            "criteria": {
+              "technical": "outages",
+              "billing": "invoices",
+              "sales": "plans"
+            }
+          },
+          "urgent": {
+            "type": "noul",
+            "instructions": null
+          }
+        }
+      },
+      "inputTokens": 299,
+      "probabilities": {
+        "severity": {
+          "0": 0.4384230971336365,
+          "1": 0.5518418550491333,
+          "2": 0.00973509345203638
+        },
+        "team": {
+          "billing": 0.0786442905664444,
+          "sales": 0.9181160926818848,
+          "technical": 0.003239626297727227
+        },
+        "urgent": {
+          "true": 0.04001857340335846,
+          "false": 0.9599814414978027
+        }
+      }
+    }
+  ]
+}

@@ -1,3 +1,3 @@
 # Specs
 
-All specs that for AI to generate code.
+Implementation specifications for clef-rs live here. See the [specification index](index.md) for designs and their status.

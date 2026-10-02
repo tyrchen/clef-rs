@@ -1,0 +1,17 @@
+{
+  "model": "clef-flash",
+  "state": "Checkout has failed for every customer for the last hour.",
+  "questions": {
+    "urgent": {"type": "noul", "instructions": "Is this urgent?"},
+    "team": {
+      "type": "choice",
+      "instructions": "Which team should handle this?",
+      "criteria": {"billing": "invoices", "technical": "outages", "sales": "plans"}
+    },
+    "severity": {
+      "type": "score",
+      "instructions": "How severe is this?",
+      "criteria": ["None", "Minor", "Critical"]
+    }
+  }
+}
