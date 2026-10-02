@@ -1,0 +1,525 @@
+{
+  "schemaVersion": 1,
+  "revision": "17f0b0ad64efb65d273590632833508766b2aae6",
+  "manifestDigest": "835c9b759faa2f20eec67dfdbf12ea74fc9937c58623b07371db6149b06ef59d",
+  "profile": "metal:0:f16:text:4096",
+  "pid": 33949,
+  "memoryPlan": {
+    "hostBytes": 42889834550,
+    "deviceBytes": 30919215523
+  },
+  "verificationMs": 6474.316625,
+  "loadMs": 17821.654458,
+  "firstDecisionMs": 652.391084,
+  "cases": [
+    {
+      "workload": {
+        "name": "short-256",
+        "tokens": 256,
+        "fields": 1,
+        "options": 2,
+        "samples": 10
+      },
+      "actualTokens": 256,
+      "latency": {
+        "count": 10,
+        "meanMs": 637.1179000999999,
+        "minMs": 636.206459,
+        "p50Ms": 637.160458,
+        "p95Ms": 638.243625,
+        "p99Ms": 638.243625,
+        "maxMs": 638.243625,
+        "standardDeviationMs": 0.6605454722787041
+      },
+      "wallMs": 6371.356041,
+      "requestsPerSecond": 1.5695245934538098,
+      "inputTokensPerSecond": 401.7982959241753,
+      "samplesMs": [
+        636.29075,
+        638.243625,
+        637.6577500000001,
+        637.223584,
+        637.204458,
+        636.294375,
+        636.206459,
+        637.880042,
+        637.160458,
+        637.0175
+      ],
+      "diagnostic": {
+        "encodingMs": 0.199208,
+        "backboneMs": 630.969333,
+        "headMs": 8.057,
+        "conversionMs": 0.003958,
+        "synchronizationMs": 0.002125,
+        "totalMs": 639.232125
+      },
+      "deviceMemory": {
+        "allocatedBytes": 18395496448,
+        "recommendedBytes": 55662788608,
+        "architecture": "applegpu_g17s"
+      }
+    },
+    {
+      "workload": {
+        "name": "medium-1024",
+        "tokens": 1024,
+        "fields": 1,
+        "options": 2,
+        "samples": 10
+      },
+      "actualTokens": 1024,
+      "latency": {
+        "count": 10,
+        "meanMs": 2544.3820210000003,
+        "minMs": 2541.989417,
+        "p50Ms": 2544.267875,
+        "p95Ms": 2546.6353750000003,
+        "p99Ms": 2546.6353750000003,
+        "maxMs": 2546.6353750000003,
+        "standardDeviationMs": 1.2402601312301775
+      },
+      "wallMs": 25444.044292000002,
+      "requestsPerSecond": 0.3930192812604148,
+      "inputTokensPerSecond": 402.45174401066475,
+      "samplesMs": [
+        2545.151625,
+        2544.0260000000003,
+        2544.267875,
+        2542.97025,
+        2544.422917,
+        2545.734084,
+        2544.223625,
+        2541.989417,
+        2546.6353750000003,
+        2544.399042
+      ],
+      "diagnostic": {
+        "encodingMs": 0.6425,
+        "backboneMs": 2526.2372499999997,
+        "headMs": 21.680583,
+        "conversionMs": 0.005208,
+        "synchronizationMs": 0.002792,
+        "totalMs": 2548.568708
+      },
+      "deviceMemory": {
+        "allocatedBytes": 18395496448,
+        "recommendedBytes": 55662788608,
+        "architecture": "applegpu_g17s"
+      }
+    },
+    {
+      "workload": {
+        "name": "long-4096",
+        "tokens": 4096,
+        "fields": 1,
+        "options": 2,
+        "samples": 3
+      },
+      "actualTokens": 4096,
+      "latency": {
+        "count": 3,
+        "meanMs": 10581.239304999997,
+        "minMs": 10581.137958,
+        "p50Ms": 10581.218916,
+        "p95Ms": 10581.361040999998,
+        "p99Ms": 10581.361040999998,
+        "maxMs": 10581.361040999998,
+        "standardDeviationMs": 0.09220733778777344
+      },
+      "wallMs": 31743.828375,
+      "requestsPerSecond": 0.09450655933997752,
+      "inputTokensPerSecond": 387.09886705654793,
+      "samplesMs": [
+        10581.137958,
+        10581.218916,
+        10581.361040999998
+      ],
+      "diagnostic": {
+        "encodingMs": 2.216542,
+        "backboneMs": 10514.494125000001,
+        "headMs": 71.98220900000001,
+        "conversionMs": 0.005542,
+        "synchronizationMs": 0.0026249999999999997,
+        "totalMs": 10588.701542
+      },
+      "deviceMemory": {
+        "allocatedBytes": 18395496448,
+        "recommendedBytes": 55662788608,
+        "architecture": "applegpu_g17s"
+      }
+    },
+    {
+      "workload": {
+        "name": "mixed-8-fields",
+        "tokens": 1024,
+        "fields": 8,
+        "options": 4,
+        "samples": 10
+      },
+      "actualTokens": 1024,
+      "latency": {
+        "count": 10,
+        "meanMs": 2557.6170917000004,
+        "minMs": 2556.496083,
+        "p50Ms": 2557.327334,
+        "p95Ms": 2559.873667,
+        "p99Ms": 2559.873667,
+        "maxMs": 2559.873667,
+        "standardDeviationMs": 0.9671923115487475
+      },
+      "wallMs": 25576.421875,
+      "requestsPerSecond": 0.39098510530023073,
+      "inputTokensPerSecond": 400.36874782743627,
+      "samplesMs": [
+        2556.703792,
+        2557.801792,
+        2557.011208,
+        2558.054,
+        2558.549,
+        2557.5233329999996,
+        2559.873667,
+        2556.496083,
+        2556.830708,
+        2557.327334
+      ],
+      "diagnostic": {
+        "encodingMs": 0.711667,
+        "backboneMs": 2527.026584,
+        "headMs": 32.935666000000005,
+        "conversionMs": 0.013458000000000001,
+        "synchronizationMs": 0.0029579999999999997,
+        "totalMs": 2560.690792
+      },
+      "deviceMemory": {
+        "allocatedBytes": 18395496448,
+        "recommendedBytes": 55662788608,
+        "architecture": "applegpu_g17s"
+      }
+    },
+    {
+      "workload": {
+        "name": "wide-32-fields",
+        "tokens": 3072,
+        "fields": 32,
+        "options": 2,
+        "samples": 3
+      },
+      "actualTokens": 3072,
+      "latency": {
+        "count": 3,
+        "meanMs": 7912.540972666666,
+        "minMs": 7911.734459,
+        "p50Ms": 7912.922791999999,
+        "p95Ms": 7912.9656669999995,
+        "p99Ms": 7912.9656669999995,
+        "maxMs": 7912.9656669999995,
+        "standardDeviationMs": 0.5705598346043915
+      },
+      "wallMs": 23737.735875,
+      "requestsPerSecond": 0.12638105065275101,
+      "inputTokensPerSecond": 388.2425876052512,
+      "samplesMs": [
+        7912.9656669999995,
+        7912.922791999999,
+        7911.734459
+      ],
+      "diagnostic": {
+        "encodingMs": 1.957125,
+        "backboneMs": 7825.48675,
+        "headMs": 100.267292,
+        "conversionMs": 0.023333,
+        "synchronizationMs": 0.002417,
+        "totalMs": 7927.738167
+      },
+      "deviceMemory": {
+        "allocatedBytes": 18395496448,
+        "recommendedBytes": 55662788608,
+        "architecture": "applegpu_g17s"
+      }
+    },
+    {
+      "workload": {
+        "name": "large-option-schema",
+        "tokens": 4096,
+        "fields": 4,
+        "options": 64,
+        "samples": 3
+      },
+      "actualTokens": 4096,
+      "latency": {
+        "count": 3,
+        "meanMs": 10613.320236333333,
+        "minMs": 10610.282916999999,
+        "p50Ms": 10614.792125,
+        "p95Ms": 10614.885666999999,
+        "p99Ms": 10614.885666999999,
+        "maxMs": 10614.885666999999,
+        "standardDeviationMs": 2.1480485835479115
+      },
+      "wallMs": 31840.063374999998,
+      "requestsPerSecond": 0.09422091798835812,
+      "inputTokensPerSecond": 385.92888008031485,
+      "samplesMs": [
+        10610.282916999999,
+        10614.885666999999,
+        10614.792125
+      ],
+      "diagnostic": {
+        "encodingMs": 2.987541,
+        "backboneMs": 10506.030083000001,
+        "headMs": 104.166792,
+        "conversionMs": 0.060916,
+        "synchronizationMs": 0.673666,
+        "totalMs": 10613.919458
+      },
+      "deviceMemory": {
+        "allocatedBytes": 18395496448,
+        "recommendedBytes": 55662788608,
+        "architecture": "applegpu_g17s"
+      }
+    },
+    {
+      "workload": {
+        "name": "minimal-139",
+        "tokens": 139,
+        "fields": 1,
+        "options": 2,
+        "samples": 20
+      },
+      "actualTokens": 139,
+      "latency": {
+        "count": 20,
+        "meanMs": 448.0331897,
+        "minMs": 446.837,
+        "p50Ms": 448.026125,
+        "p95Ms": 448.563459,
+        "p99Ms": 448.72166699999997,
+        "maxMs": 448.72166699999997,
+        "standardDeviationMs": 0.4186030408039437
+      },
+      "wallMs": 8961.060625,
+      "requestsPerSecond": 2.231878662242618,
+      "inputTokensPerSecond": 310.2311340517239,
+      "samplesMs": [
+        448.180375,
+        447.603541,
+        448.469125,
+        447.69745900000004,
+        448.51433299999997,
+        447.93787499999996,
+        447.628833,
+        447.82137500000005,
+        448.563459,
+        447.910459,
+        447.794959,
+        447.869042,
+        446.837,
+        448.120417,
+        448.031917,
+        448.427708,
+        448.72166699999997,
+        448.026125,
+        448.275375,
+        448.23275
+      ],
+      "diagnostic": {
+        "encodingMs": 0.14425000000000002,
+        "backboneMs": 442.236875,
+        "headMs": 6.7166250000000005,
+        "conversionMs": 0.004417,
+        "synchronizationMs": 0.00275,
+        "totalMs": 449.105416
+      },
+      "deviceMemory": {
+        "allocatedBytes": 18395496448,
+        "recommendedBytes": 55662788608,
+        "architecture": "applegpu_g17s"
+      }
+    },
+    {
+      "workload": {
+        "name": "compact-192",
+        "tokens": 192,
+        "fields": 1,
+        "options": 2,
+        "samples": 20
+      },
+      "actualTokens": 192,
+      "latency": {
+        "count": 20,
+        "meanMs": 486.07211040000004,
+        "minMs": 485.07525000000004,
+        "p50Ms": 485.96666700000003,
+        "p95Ms": 486.836125,
+        "p99Ms": 487.43025,
+        "maxMs": 487.43025,
+        "standardDeviationMs": 0.6045280015457779
+      },
+      "wallMs": 9721.806291,
+      "requestsPerSecond": 2.0572308685593823,
+      "inputTokensPerSecond": 394.9883267634014,
+      "samplesMs": [
+        486.216667,
+        486.456541,
+        485.57687500000003,
+        485.96666700000003,
+        485.900875,
+        486.499167,
+        485.310458,
+        485.148625,
+        485.659083,
+        486.6525,
+        486.11454100000003,
+        485.94295900000003,
+        486.24004199999996,
+        487.43025,
+        486.55904100000004,
+        485.38750000000005,
+        486.736875,
+        485.07525000000004,
+        486.836125,
+        485.732167
+      ],
+      "diagnostic": {
+        "encodingMs": 0.189333,
+        "backboneMs": 480.19516699999997,
+        "headMs": 7.452916,
+        "conversionMs": 0.004542,
+        "synchronizationMs": 0.0025830000000000002,
+        "totalMs": 487.84475
+      },
+      "deviceMemory": {
+        "allocatedBytes": 18395496448,
+        "recommendedBytes": 55662788608,
+        "architecture": "applegpu_g17s"
+      }
+    }
+  ],
+  "managedStartupMs": 18787.565917,
+  "concurrency": [
+    {
+      "concurrency": 1,
+      "attempted": 2,
+      "succeeded": 2,
+      "errors": {},
+      "wallMs": 1276.4199170000002,
+      "successfulRequestsPerSecond": 1.5668824760276752,
+      "latency": {
+        "count": 2,
+        "meanMs": 638.1981460000001,
+        "minMs": 637.69325,
+        "p50Ms": 637.69325,
+        "p95Ms": 638.7030420000001,
+        "p99Ms": 638.7030420000001,
+        "maxMs": 638.7030420000001,
+        "standardDeviationMs": 0.5048960000000307
+      },
+      "samplesMs": [
+        638.7030420000001,
+        637.69325
+      ]
+    },
+    {
+      "concurrency": 2,
+      "attempted": 4,
+      "succeeded": 4,
+      "errors": {},
+      "wallMs": 2549.493125,
+      "successfulRequestsPerSecond": 1.5689393161238667,
+      "latency": {
+        "count": 4,
+        "meanMs": 1115.531802,
+        "minMs": 637.380292,
+        "p50Ms": 1274.552042,
+        "p95Ms": 1275.278666,
+        "p99Ms": 1275.278666,
+        "maxMs": 1275.278666,
+        "standardDeviationMs": 276.06102254698374
+      },
+      "samplesMs": [
+        637.380292,
+        1275.278666,
+        1274.552042,
+        1274.916208
+      ]
+    },
+    {
+      "concurrency": 8,
+      "attempted": 16,
+      "succeeded": 16,
+      "errors": {},
+      "wallMs": 10203.173792,
+      "successfulRequestsPerSecond": 1.5681395148385218,
+      "latency": {
+        "count": 16,
+        "meanMs": 3983.4788618125003,
+        "minMs": 638.388208,
+        "p50Ms": 5094.517125,
+        "p95Ms": 5106.173041,
+        "p99Ms": 5106.173041,
+        "maxMs": 5106.173041,
+        "standardDeviationMs": 1520.300796835705
+      },
+      "samplesMs": [
+        638.388208,
+        5094.517125,
+        1274.24575,
+        5096.194875,
+        1910.9883330000002,
+        5095.5767080000005,
+        2548.466541,
+        5098.320250000001,
+        3185.943708,
+        5101.586582999999,
+        3823.194792,
+        5101.55825,
+        4459.3211249999995,
+        5104.235833,
+        5096.950667,
+        5106.173041
+      ]
+    },
+    {
+      "concurrency": 16,
+      "attempted": 32,
+      "succeeded": 16,
+      "errors": {
+        "queueFull": 16
+      },
+      "wallMs": 10242.1475,
+      "successfulRequestsPerSecond": 1.5621723862109973,
+      "latency": {
+        "count": 16,
+        "meanMs": 3999.3576249375,
+        "minMs": 637.280583,
+        "p50Ms": 5111.756875,
+        "p95Ms": 5130.782499999999,
+        "p99Ms": 5130.782499999999,
+        "maxMs": 5130.782499999999,
+        "standardDeviationMs": 1527.6109430348574
+      },
+      "samplesMs": [
+        637.280583,
+        5119.034458,
+        1277.932166,
+        5115.776708,
+        1918.101917,
+        5112.577875,
+        2556.185833,
+        5111.756875,
+        3198.430917,
+        5130.782499999999,
+        3837.719459,
+        5128.629958,
+        4477.896291999999,
+        5125.515583,
+        5115.3095,
+        5126.791375
+      ]
+    }
+  ],
+  "shutdownMs": 60.1125,
+  "complete": true,
+  "gpuSampledPeakBytes": 20092108800
+}

@@ -1,0 +1,78 @@
+{
+  "startedAt": "2026-10-02T21:25:39.199752+00:00",
+  "hardware": {
+    "system": "Darwin",
+    "release": "25.5.0",
+    "machine": "arm64",
+    "cpu": "Apple M5 Pro",
+    "ramBytes": 68719476736,
+    "cpuCores": 18,
+    "osVersion": "26.5.2",
+    "gpus": [
+      {
+        "model": "Apple M5 Pro",
+        "cores": "20",
+        "metal": "spdisplays_metal4"
+      }
+    ]
+  },
+  "rust": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "gitCommit": "5df02eb0d39f0646748fde01b8ed6c75c57d5215",
+  "gitDirty": true,
+  "binarySha256": "c494d5e6875e3584ae8f50453873b2a4e1a021feee3cc9060ea826bc18003a2d",
+  "configSha256": "50879c4b71c5bb481491fc17b2a4b01a6ee9a5e78f539b429d00dde22285127f",
+  "profiles": [
+    "metal:f32",
+    "metal:f16"
+  ],
+  "threadSettings": {
+    "RAYON_NUM_THREADS": "8",
+    "CANDLE_NUM_THREADS": "8"
+  },
+  "processes": {
+    "metal:f32": {
+      "wallSeconds": 334.228288834,
+      "peakRssBytes": 33617543168,
+      "command": [
+        "/Users/tchen/.target/release/examples/benchmark",
+        "--cache-dir",
+        "/Users/tchen/.cache/clef-rs",
+        "--config",
+        "/Users/tchen/projects/mycode/rust/clef-rs/examples/clef.mbp-benchmark.yaml",
+        "--device",
+        "metal",
+        "--dtype",
+        "f32",
+        "--output",
+        "/Users/tchen/projects/mycode/rust/clef-rs/docs/benchmarks/flash-metal-optimized/metal-f32.json"
+      ],
+      "peakFootprintBytes": 45611613048,
+      "timeRealSeconds": 334.23,
+      "userCpuSeconds": 33.98,
+      "systemCpuSeconds": 16.31,
+      "averageCpuCores": 0.15046524848158452
+    },
+    "metal:f16": {
+      "wallSeconds": 303.52995629200007,
+      "peakRssBytes": 27410956288,
+      "command": [
+        "/Users/tchen/.target/release/examples/benchmark",
+        "--cache-dir",
+        "/Users/tchen/.cache/clef-rs",
+        "--config",
+        "/Users/tchen/projects/mycode/rust/clef-rs/examples/clef.mbp-benchmark.yaml",
+        "--device",
+        "metal",
+        "--dtype",
+        "f16",
+        "--output",
+        "/Users/tchen/projects/mycode/rust/clef-rs/docs/benchmarks/flash-metal-optimized/metal-f16.json"
+      ],
+      "peakFootprintBytes": 27628211856,
+      "timeRealSeconds": 303.51,
+      "userCpuSeconds": 38.59,
+      "systemCpuSeconds": 7.99,
+      "averageCpuCores": 0.15347105531942937
+    }
+  }
+}

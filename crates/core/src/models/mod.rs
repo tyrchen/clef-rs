@@ -2,7 +2,10 @@
 pub(crate) mod head;
 #[cfg(all(feature = "metal", target_os = "macos"))]
 mod metal;
+#[cfg(all(feature = "metal", target_os = "macos"))]
+mod neural;
 pub(crate) mod ops;
+mod projection;
 pub(crate) mod qwen;
 #[cfg(feature = "vision")]
 pub(crate) mod vision;

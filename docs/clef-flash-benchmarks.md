@@ -28,14 +28,27 @@ The external harness records hardware, OS/Rust versions, base commit/dirty state
 
 ## Results and interpretation
 
-The measured matrix is published in [the CPU/Metal report](benchmarks/flash-cpu-metal/report.md), with machine-readable raw results beside it. F32 compares the same precision across backends. F16 is a mixed-precision comparison and must be read alongside [the numerical qualification](clef-flash-verification.md).
+The pre-optimization measured matrix is published in [the CPU/Metal report](benchmarks/flash-cpu-metal/report.md), with machine-readable raw results beside it. F32 compares the same precision across backends. F16 is a mixed-precision comparison and must be read alongside [the numerical qualification](clef-flash-verification.md).
 
 Small sample counts make p95/p99 descriptive order statistics, often equal to the maximum observation; they do not establish a production tail latency or SLO. Queue time under concurrency is intentional. Rejected work is excluded from successful latency/throughput and shown separately. The suite does not establish a sustained 10,000-decision memory guarantee.
 
 Criterion measures request parsing, bounded JSON validation, and reference-compatible JSON rendering without loading weights. The exported [domain results](benchmarks/flash-cpu-metal/domain.md) include confidence intervals and raw samples. Local artifacts are also stored under Cargo's target directory in `criterion`; `make verify-benchmark` checks the inference runner's statistics and configuration rules.
 
-## Recorded campaign
+## Pre-optimization campaign
 
 The [complete measured report](benchmarks/flash-cpu-metal/report.md) contains CPU F32, Metal F32 and mixed Metal F16 results on the 64 GiB Apple M5 Pro, with 39 normal-path samples and four concurrency groups per backend. The full campaign took approximately 138 minutes (82 CPU, 29 Metal F32, 28 Metal F16); reduce the bounded YAML sample counts for a shorter local experiment. Metal is approximately 2.9–3.0× faster than the default pure-Rust CPU path. Mixed F16 saves about 40% of the sampled direct-phase GPU peak (26.661 versus 44.276 GiB) while its mean latencies are only about 0.2–1.5% lower than Metal F32 across these workloads. The large-context cases have only three samples; percentiles are descriptive, not a production SLO.
 
 The campaign found and corrected an F16 memory-planning underestimate. The final planner budgets Metal FFN temporary width and covers both measured peaks; the report preserves the original executable's estimates and documents the follow-up correction. The configuration guard, admission estimate and documentation changed after measurement, while the measured tensor graph remains unchanged. Raw artifacts identify the exact measured executable from `0900a46` by SHA-256.
+
+## Optimized MBP campaign
+
+The fused Metal execution graph and its detailed measurements are described in [the MBP performance report](clef-flash-metal-performance.md). The original CPU/Metal raw baseline above is preserved. The extended [MBP workload configuration](../examples/clef.mbp-benchmark.yaml) retains all six original cases and adds exact 139/192-token one-field requests (20 samples each), for 79 normal-path samples per precision. The pinned encoding protocol requires 139 tokens for the harness's minimal binary question with an empty state; requested 64/128-token cases cannot be constructed and are rejected rather than reported as fictitious timings.
+
+```sh
+make bench-mbp CLEF_RELEASE_CACHE=/path/to/model-cache
+make profile-metal CLEF_RELEASE_CACHE=/path/to/model-cache
+make profile-metal-kernels
+make verify-metal-neural # M5 matrix correctness and operator diagnostics
+```
+
+`bench-mbp` runs only Metal F32/mixed F16, sequentially, and writes to `docs/benchmarks/flash-metal-m5` by default (`MBP_BENCHMARK_RESULTS` overrides it). CPU tensor equations are unchanged; their earlier full-weight campaign is the reference rather than an unnecessary repeat of the 82-minute CPU run. `profile-metal` requires Instruments/Xcode and records a timestamped trace and diagnostic benchmark under Cargo's target directory; traces can contain unrelated system information and remain outside the repository. Traced samples and isolated recurrence diagnostics are separate from normal-path latency measurements.

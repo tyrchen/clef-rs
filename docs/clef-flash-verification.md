@@ -27,7 +27,7 @@ Every qualified CPU/Metal profile retains maximum absolute probability error **0
 | [4,096-token text and two PNG shapes](../crates/core/fixtures/release/flash-extended-f32.json) | 3 | 24 | 0.00000333786 | 0.000000907991 | 281.05 s |
 | [Baseline and progressive JPEG](../crates/core/fixtures/release/flash-jpeg-f32.json) | 2 | 16 | 0.00000452995 | 0.000000939617 | 68.33 s |
 
-Metal full-weight qualification on the same runner:
+Pre-optimization Metal full-weight qualification on the same runner:
 
 | Profile | Corpus | Probabilities | Maximum absolute error | Mean absolute error | Rust test elapsed |
 | --- | --- | ---: | ---: | ---: | ---: |
@@ -37,6 +37,34 @@ Metal full-weight qualification on the same runner:
 | Mixed F16 | 100 mixed text requests | 800 | 0.00071564317 | 0.00007115226 | 558.60 s |
 | Mixed F16 | 4,096-token text and two PNG shapes | 24 | 0.00016713142 | 0.00006244767 | 181.14 s |
 | Mixed F16 | Baseline and progressive JPEG | 16 | 0.00019443035 | 0.00007643865 | 46.20 s |
+
+
+Optimized Metal qualification (`5df02eb`, unchanged thresholds):
+
+| Profile | Corpus | Probabilities | Maximum absolute error | Mean absolute error | Rust test elapsed |
+| --- | --- | ---: | ---: | ---: | ---: |
+| F32 | 100 mixed text requests | 800 | 0.000003114343 | 0.000000202775 | 116.56 s |
+| F32 | 4,096-token text and two PNG shapes | 24 | 0.000005424023 | 0.000001789847 | 56.19 s |
+| F32 | Baseline and progressive JPEG | 16 | 0.000004351139 | 0.000001026667 | 34.39 s |
+| Mixed F16 | 100 mixed text requests | 800 | 0.000503331423 | 0.000047634602 | 104.42 s |
+| Mixed F16 | 4,096-token text and two PNG shapes | 24 | 0.000213682652 | 0.000052259798 | 47.41 s |
+| Mixed F16 | Baseline and progressive JPEG | 16 | 0.000249028206 | 0.000047095004 | 27.90 s |
+
+Metal 4 M5 mixed-F16 projections additionally passed the same full-model gates:
+
+| Corpus | Probabilities | Maximum absolute error | Mean absolute error | Rust test elapsed |
+| --- | ---: | ---: | ---: | ---: |
+| 100 mixed text requests | 800 | 0.000443369150 | 0.000037016605 | 62.20 s |
+| 4,096-token text and two PNG shapes | 24 | 0.000328183174 | 0.000090070253 | 38.80 s |
+| Baseline and progressive JPEG | 16 | 0.000418752432 | 0.000095413183 | 25.72 s |
+
+F32 text qualification was repeated after the projection wrapper change: 800 probabilities, maximum 0.000003114343, mean 0.000000202775 (116.45 s), identical to the preceding optimized F32 result. Its image attention/projection math is unchanged and the preceding F32 PNG/JPEG qualification is retained.
+
+After the M5 projection change, authenticated real HTTP qualification passed again on F32 (33.81 s) and mixed F16 (25.80 s). Both release CLI/server PNG/JPEG smoke tests passed again, including oracle probabilities, exact CLI/HTTP answers, provenance, metrics and SIGTERM drain.
+
+The M5 matrix pipeline uses F16 operands with F32 accumulation, disables relaxed precision and applies the existing GPU half conversion. CPU comparison tests cover complete tiles, M/N tails and unaligned K. Full default/vision/Metal build, tests, nightly format, pedantic Clippy, audit/deny, documentation and production boundary lints passed again with this projection implementation.
+
+The fused recurrence preserves the previous Metal reduction tree and is independently checked against it within 1e-7. CPU checks cover key widths 1/4/32/64/128, padded value widths, multiple heads and sequence lengths. Native F32 GQA attention checks aligned/unaligned causal lengths against the CPU reference. The optimization retains the original classifier/vision attention graph after an experimental generic SDPA route exceeded the mixed-F16 image mean gate. These test elapsed times include verification/loading and varying inputs; use [the controlled MBP measurements](clef-flash-metal-performance.md) for speedups.
 
 F16 retains large text projection matmuls in F16, with an F32 classifier head, vision tower, residuals, normalization, convolution/attention accumulation, and recurrent state. Qualification caught pure-F16 classifier/vision errors and a visual-feature downcast; these were fixed by preserving sensitive paths in F32. The original limits were not relaxed. Normal and separately profiled decisions produce exactly the same rounded response on the checked first corpus records. Qualification elapsed times have different thread/workload conditions and must not be used as controlled speedups; use [the performance measurements](clef-flash-benchmarks.md).
 
@@ -62,6 +90,10 @@ Fast scheduler tests verify principal fairness, bounded admission, queued expiry
 
 The full-weight HTTP integration test compares direct library answers with authenticated router and real TCP answers exactly, verifies provenance, checks the active snapshot lease, closes admission, and joins runtime owners. Listener regression tests expire partial slow headers while allowing active inference to outlive the idle socket deadline.
 
+The final optimized release CLI/server smoke tests passed on both Metal precisions with offline PNG/JPEG inference, reference probabilities, authenticated readiness/discovery/metrics, provenance, SIGTERM drain and exact CLI/HTTP response equality. The CLI harness used the existing reference Python environment; the system Python lacked its PyYAML test dependency. `verify-metal-cli` is independently runnable to avoid repeating passed Rust HTTP checks when correcting only the test interpreter.
+
+The optimized full-weight HTTP integration tests also passed on Metal F32 (32.85 s) and mixed F16 (27.01 s), including exact direct/router/TCP answer equivalence, provenance and owner shutdown.
+
 The same full-weight HTTP integration test passed on Metal F32 (49.56 s) and mixed F16 (42.83 s). Both release Metal CLI/server smoke tests passed with actual GPU PNG/JPEG inference and exact CLI/HTTP response equality. After the shared YAML guard and memory-plan correction, both real HTTP tests were repeated successfully (F32 50.03 s, F16 42.42 s), and both final release CLI/server PNG/JPEG smoke tests passed again.
 
 The release CLI/server smoke test uses a temporary local JWKS and the clearly identified public test key. It starts `serve --offline`, waits for authenticated readiness, rejects unauthenticated health requests, verifies model discovery, runs PNG/JPEG decisions over TCP against the reference, reads protected metrics, sends SIGTERM, requires successful process exit, then runs offline CLI inference and requires exact CLI/HTTP response equality. No external identity provider or runtime key discovery is needed.
@@ -73,7 +105,7 @@ The release CLI/server smoke test uses a temporary local JWKS and the clearly id
 - Workspace `cargo build` and `cargo test`: 28 core tests, eight server tests, and nine documentation examples passed with default features.
 - Vision build/tests: 32 core tests, eight server tests, and nine documentation examples passed. Large-weight tests and the explicit fuzz campaign remain ignored in ordinary tests and were run separately as recorded above.
 - Nightly formatting, pedantic Clippy for all workspace targets with default and vision features, and `--no-default-features` offline compilation passed.
-- Metal feature build/tests, real GPU synthetic backbone/head fixtures, and pedantic all-target Clippy passed; the Metal configuration and shared-RAM rejection test passed. The Metal matrix passed 32 core tests, nine server tests and nine documentation examples. The benchmark example passed three statistics/configuration tests, including duplicate YAML rejection.
+- Metal feature build/tests, real GPU synthetic backbone/head fixtures, and pedantic all-target Clippy passed; the Metal configuration and shared-RAM rejection test passed. The Metal matrix passed 32 core tests, nine server tests and nine documentation examples. The original benchmark example passed three statistics/configuration tests, including duplicate YAML rejection. The optimized matrix passed 33 core/9 server/9 documentation tests with Metal+vision, five real-device kernel/backbone/head diagnostics, and seven benchmark configuration/statistics cases. The full default/vision/offline/build/format/pedantic gates and production boundary lints were repeated on the final optimization source. Audit and deny passed with the same documented advisory exception.
 - Public API documentation built with `RUSTDOCFLAGS='-D warnings'`; artifact and tensor-loader checks passed.
 - `cargo audit --ignore RUSTSEC-2024-0436` and `cargo deny check` passed. The one documented exception is the unmaintained compile-time `paste` macro required transitively by Candle/gemm/tokenizers; no vulnerability advisory is exempted. Dependency duplicates and unused allowed-license entries remain non-failing policy warnings.
 

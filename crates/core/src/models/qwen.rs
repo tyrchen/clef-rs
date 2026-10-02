@@ -10,7 +10,7 @@
 
 use candle_core::{D, DType, Tensor};
 use candle_nn::{
-    Linear, Module,
+    Module,
     ops::{sigmoid, silu},
 };
 use serde::Deserialize;
@@ -20,6 +20,7 @@ use super::metal::{AttentionKernel, DeltaKernel};
 use super::{
     Control,
     ops::{attention, rms, rotary},
+    projection::{Projection, Projections},
     weights::Weights,
 };
 use crate::{Error, Result};
@@ -98,10 +99,10 @@ impl ModelConfig {
 struct FullAttention {
     #[cfg(all(feature = "metal", target_os = "macos"))]
     kernel: Option<AttentionKernel>,
-    q: Linear,
-    k: Linear,
-    v: Linear,
-    out: Linear,
+    q: Projection,
+    k: Projection,
+    v: Projection,
+    out: Projection,
     qn: Tensor,
     kn: Tensor,
 }
@@ -109,11 +110,11 @@ struct FullAttention {
 struct Delta {
     #[cfg(all(feature = "metal", target_os = "macos"))]
     kernel: Option<DeltaKernel>,
-    qkv: Linear,
-    z: Linear,
-    a: Linear,
-    b: Linear,
-    out: Linear,
+    qkv: Projection,
+    z: Projection,
+    a: Projection,
+    b: Projection,
+    out: Projection,
     conv: Tensor,
     dt: Tensor,
     a_log: Tensor,
@@ -129,9 +130,9 @@ struct Layer {
     input_norm: Tensor,
     post_norm: Tensor,
     mixer: Mixer,
-    gate: Linear,
-    up: Linear,
-    down: Linear,
+    gate: Projection,
+    up: Projection,
+    down: Projection,
 }
 #[derive(Debug)]
 pub(crate) struct Backbone {
@@ -149,6 +150,10 @@ impl Backbone {
             &[c.vocab_size, h],
         )?;
         #[cfg(all(feature = "metal", target_os = "macos"))]
+        let projections = Projections::new(embeddings.device(), embeddings.dtype())?;
+        #[cfg(not(all(feature = "metal", target_os = "macos")))]
+        let projections = Projections::default();
+        #[cfg(all(feature = "metal", target_os = "macos"))]
         let delta_kernel = DeltaKernel::new(
             embeddings.device(),
             c.linear_key_head_dim,
@@ -162,69 +167,49 @@ impl Backbone {
         for (index, kind) in c.layer_types.iter().enumerate() {
             let p = format!("model.language_model.layers.{index}");
             let mixer = if kind == "full_attention" {
-                let n = c.num_attention_heads * c.head_dim;
-                let kv = c.num_key_value_heads * c.head_dim;
-                Mixer::Full(FullAttention {
+                Mixer::Full(FullAttention::load(
+                    w,
+                    &projections,
+                    &c,
+                    &p,
                     #[cfg(all(feature = "metal", target_os = "macos"))]
-                    kernel: attention_kernel.clone(),
-                    q: w.linear(&format!("{p}.self_attn.q_proj"), h, n * 2, false)?,
-                    k: w.linear(&format!("{p}.self_attn.k_proj"), h, kv, false)?,
-                    v: w.linear(&format!("{p}.self_attn.v_proj"), h, kv, false)?,
-                    out: w.linear(&format!("{p}.self_attn.o_proj"), n, h, false)?,
-                    qn: w.take(&format!("{p}.self_attn.q_norm.weight"), &[c.head_dim])?,
-                    kn: w.take(&format!("{p}.self_attn.k_norm.weight"), &[c.head_dim])?,
-                })
+                    attention_kernel.clone(),
+                )?)
             } else {
-                let key = c.linear_num_key_heads * c.linear_key_head_dim;
-                let value = c.linear_num_value_heads * c.linear_value_head_dim;
-                Mixer::Linear(Delta {
+                Mixer::Linear(Delta::load(
+                    w,
+                    &projections,
+                    &c,
+                    &p,
                     #[cfg(all(feature = "metal", target_os = "macos"))]
-                    kernel: delta_kernel.clone(),
-                    qkv: w.linear(
-                        &format!("{p}.linear_attn.in_proj_qkv"),
-                        h,
-                        2 * key + value,
-                        false,
-                    )?,
-                    z: w.linear(&format!("{p}.linear_attn.in_proj_z"), h, value, false)?,
-                    a: w.linear(
-                        &format!("{p}.linear_attn.in_proj_a"),
-                        h,
-                        c.linear_num_value_heads,
-                        false,
-                    )?,
-                    b: w.linear(
-                        &format!("{p}.linear_attn.in_proj_b"),
-                        h,
-                        c.linear_num_value_heads,
-                        false,
-                    )?,
-                    out: w.linear(&format!("{p}.linear_attn.out_proj"), value, h, false)?,
-                    conv: w.take(
-                        &format!("{p}.linear_attn.conv1d.weight"),
-                        &[2 * key + value, 1, c.linear_conv_kernel_dim],
-                    )?,
-                    dt: w.take(
-                        &format!("{p}.linear_attn.dt_bias"),
-                        &[c.linear_num_value_heads],
-                    )?,
-                    a_log: w.take(
-                        &format!("{p}.linear_attn.A_log"),
-                        &[c.linear_num_value_heads],
-                    )?,
-                    norm: w.take(
-                        &format!("{p}.linear_attn.norm.weight"),
-                        &[c.linear_value_head_dim],
-                    )?,
-                })
+                    delta_kernel.clone(),
+                )?)
             };
             layers.push(Layer {
                 mixer,
                 input_norm: w.take(&format!("{p}.input_layernorm.weight"), &[h])?,
                 post_norm: w.take(&format!("{p}.post_attention_layernorm.weight"), &[h])?,
-                gate: w.linear(&format!("{p}.mlp.gate_proj"), h, c.intermediate_size, false)?,
-                up: w.linear(&format!("{p}.mlp.up_proj"), h, c.intermediate_size, false)?,
-                down: w.linear(&format!("{p}.mlp.down_proj"), c.intermediate_size, h, false)?,
+                gate: projections.load(
+                    w,
+                    &format!("{p}.mlp.gate_proj"),
+                    h,
+                    c.intermediate_size,
+                    false,
+                )?,
+                up: projections.load(
+                    w,
+                    &format!("{p}.mlp.up_proj"),
+                    h,
+                    c.intermediate_size,
+                    false,
+                )?,
+                down: projections.load(
+                    w,
+                    &format!("{p}.mlp.down_proj"),
+                    c.intermediate_size,
+                    h,
+                    false,
+                )?,
             });
         }
         Ok(Self {
@@ -280,6 +265,27 @@ impl Backbone {
     }
 }
 impl FullAttention {
+    fn load(
+        w: &mut Weights,
+        projections: &Projections,
+        c: &TextConfig,
+        p: &str,
+        #[cfg(all(feature = "metal", target_os = "macos"))] kernel: Option<AttentionKernel>,
+    ) -> Result<Self> {
+        let h = c.hidden_size;
+        let n = c.num_attention_heads * c.head_dim;
+        let kv = c.num_key_value_heads * c.head_dim;
+        Ok(Self {
+            #[cfg(all(feature = "metal", target_os = "macos"))]
+            kernel,
+            q: projections.load(w, &format!("{p}.self_attn.q_proj"), h, n * 2, false)?,
+            k: projections.load(w, &format!("{p}.self_attn.k_proj"), h, kv, false)?,
+            v: projections.load(w, &format!("{p}.self_attn.v_proj"), h, kv, false)?,
+            out: projections.load(w, &format!("{p}.self_attn.o_proj"), n, h, false)?,
+            qn: w.take(&format!("{p}.self_attn.q_norm.weight"), &[c.head_dim])?,
+            kn: w.take(&format!("{p}.self_attn.k_norm.weight"), &[c.head_dim])?,
+        })
+    }
     fn forward(
         &self,
         x: &Tensor,
@@ -343,6 +349,60 @@ impl FullAttention {
     }
 }
 impl Delta {
+    fn load(
+        w: &mut Weights,
+        projections: &Projections,
+        c: &TextConfig,
+        p: &str,
+        #[cfg(all(feature = "metal", target_os = "macos"))] kernel: Option<DeltaKernel>,
+    ) -> Result<Self> {
+        let h = c.hidden_size;
+        let key = c.linear_num_key_heads * c.linear_key_head_dim;
+        let value = c.linear_num_value_heads * c.linear_value_head_dim;
+        Ok(Self {
+            #[cfg(all(feature = "metal", target_os = "macos"))]
+            kernel,
+            qkv: projections.load(
+                w,
+                &format!("{p}.linear_attn.in_proj_qkv"),
+                h,
+                2 * key + value,
+                false,
+            )?,
+            z: projections.load(w, &format!("{p}.linear_attn.in_proj_z"), h, value, false)?,
+            a: projections.load(
+                w,
+                &format!("{p}.linear_attn.in_proj_a"),
+                h,
+                c.linear_num_value_heads,
+                false,
+            )?,
+            b: projections.load(
+                w,
+                &format!("{p}.linear_attn.in_proj_b"),
+                h,
+                c.linear_num_value_heads,
+                false,
+            )?,
+            out: projections.load(w, &format!("{p}.linear_attn.out_proj"), value, h, false)?,
+            conv: w.take(
+                &format!("{p}.linear_attn.conv1d.weight"),
+                &[2 * key + value, 1, c.linear_conv_kernel_dim],
+            )?,
+            dt: w.take(
+                &format!("{p}.linear_attn.dt_bias"),
+                &[c.linear_num_value_heads],
+            )?,
+            a_log: w.take(
+                &format!("{p}.linear_attn.A_log"),
+                &[c.linear_num_value_heads],
+            )?,
+            norm: w.take(
+                &format!("{p}.linear_attn.norm.weight"),
+                &[c.linear_value_head_dim],
+            )?,
+        })
+    }
     fn forward(&self, x: &Tensor, c: &TextConfig, control: &Control) -> Result<Tensor> {
         let t = x.dim(0)?;
         let heads = c.linear_num_value_heads;

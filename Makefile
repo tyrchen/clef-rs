@@ -119,7 +119,7 @@ CLEF_BENCH_BINARY ?= $(CLEF_TARGET_DIRECTORY)/release/examples/benchmark
 BENCHMARK_CONFIG ?= $(CURDIR)/examples/clef.benchmark.yaml
 BENCHMARK_RESULTS ?= $(CURDIR)/docs/benchmarks/flash-cpu-metal
 BENCHMARK_THREADS ?= 8
-MBP_BENCHMARK_RESULTS ?= $(CURDIR)/docs/benchmarks/flash-metal-optimized
+MBP_BENCHMARK_RESULTS ?= $(CURDIR)/docs/benchmarks/flash-metal-m5
 METAL_PROFILE_CONFIG ?= $(CURDIR)/examples/clef.profile.yaml
 METAL_PROFILE_RESULTS ?= $(CLEF_TARGET_DIRECTORY)/clef-metal-profile
 METAL_PROFILE_STAMP := $(shell date -u +%Y%m%dT%H%M%SZ)
@@ -139,6 +139,9 @@ verify-metal-media: native-jpeg
 verify-metal-serving: native-jpeg
 	CLEF_RELEASE_DEVICE=metal CLEF_RELEASE_DTYPE=f32 CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' $(CARGO) test -p clef-rs-server --features metal,vision test_should_match_embedded_decisions_over_authenticated_http --release -- --ignored --nocapture
 	CLEF_RELEASE_DEVICE=metal CLEF_RELEASE_DTYPE=f16 CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' $(CARGO) test -p clef-rs-server --features metal,vision test_should_match_embedded_decisions_over_authenticated_http --release -- --ignored --nocapture
+	$(MAKE) verify-metal-cli CARGO='$(CARGO)' PYTHON='$(PYTHON)' CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)'
+
+verify-metal-cli: native-jpeg
 	$(CARGO) build -p clef-rs-server --release --features metal,vision
 	$(PYTHON) tests/reference/serve_smoke.py --binary '$(CLEF_BINARY)' --cache '$(CLEF_RELEASE_CACHE)' --device metal --dtype f32
 	$(PYTHON) tests/reference/serve_smoke.py --binary '$(CLEF_BINARY)' --cache '$(CLEF_RELEASE_CACHE)' --device metal --dtype f16
@@ -174,7 +177,10 @@ profile-metal:
 	env -u CANDLE_METAL_COMPUTE_PER_BUFFER xctrace record --template 'Metal System Trace' --output '$(METAL_PROFILE_RUN).trace' --time-limit 120s --no-prompt --target-stdout '$(METAL_PROFILE_RUN).stdout.log' --env RAYON_NUM_THREADS=$(BENCHMARK_THREADS) --env CANDLE_NUM_THREADS=$(BENCHMARK_THREADS) --launch -- '$(CLEF_BENCH_BINARY)' --cache-dir '$(CLEF_RELEASE_CACHE)' --config '$(METAL_PROFILE_CONFIG)' --device metal --dtype f16 --output '$(METAL_PROFILE_RUN).json'
 	xctrace export --input '$(METAL_PROFILE_RUN).trace' --toc --output '$(METAL_PROFILE_RUN).toc.xml'
 
+verify-metal-neural:
+	$(CARGO) test -p clef-rs-core --features metal test_should_match_metal4_projections_and_profile_flash_shapes --release -- --ignored --nocapture
+
 profile-metal-kernels:
 	$(CARGO) test -p clef-rs-core --features metal test_should_profile_full_width_delta_kernel --release -- --ignored --nocapture
 
-.PHONY: verify-metal-operators verify-metal-release verify-metal-media verify-metal-serving verify-benchmark bench-domain bench-report bench-inference bench-cpu bench-metal bench-mbp profile-metal profile-metal-kernels
+.PHONY: verify-metal-operators verify-metal-release verify-metal-media verify-metal-serving verify-metal-cli verify-benchmark bench-domain bench-report bench-inference bench-cpu bench-metal bench-mbp profile-metal profile-metal-kernels verify-metal-neural
