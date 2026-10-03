@@ -39,6 +39,47 @@ The previous [CPU/Metal campaign](benchmarks/flash-cpu-metal/report.md) remains 
 
 Implementation rationale and numerical pitfalls are recorded in [the research evidence](research/clef-metal-performance-research.md) and [design contract](../specs/clef-metal-performance-design.md).
 
+## Latest long-prefill campaign
+
+Committed `874255d` completed all eight workloads in separate sequential F32/F16 processes on this 64 GiB M5 Pro. Each precision has **100 warm normal-path samples**, one excluded warmup per case, eight separate diagnostic decisions and the existing bounded managed-runtime workload. The three expensive cases now have ten samples instead of three. Actual tokens/schemas, thread counts and concurrency construction match the prior campaign. The [raw report](benchmarks/flash-metal-prefill/report.md) preserves every sample and clean-tree source/executable/workload identity.
+
+| Workload | Previous n | Current n | Previous F16 mean ms | Current F16 mean ms | Observed reduction |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| short-256 | 10 | 10 | 225.560 | 222.366 | 1.4% |
+| medium-1024 | 10 | 10 | 880.720 | 820.664 | 6.8% |
+| long-4096 | 3 | 10 | 3902.149 | 3718.966 | 4.7% |
+| mixed-8-fields | 10 | 10 | 894.514 | 835.621 | 6.6% |
+| wide-32-fields | 3 | 10 | 2867.769 | 2726.028 | 4.9% |
+| large-option-schema | 3 | 10 | 3921.047 | 3755.468 | 4.2% |
+| minimal-139 | 20 | 20 | 169.785 | 163.715 | 3.6% |
+| compact-192 | 20 | 20 | 193.051 | 188.491 | 2.4% |
+
+This round yields a modest 1.4–6.8% observed F16 reduction across the eight workload means. The requested 1,024/4,096-token cases average **820.664/3718.966 ms**, with p95 821.901/3742.234 ms (ten samples each). The shortest 139-token input averages 163.715 ms (n=20); **100 ms has not been demonstrated**. Timings include encoding, GPU completion and answer conversion, excluding model load, HTTP/authentication and transport. These finite samples do not establish production-tail performance.
+
+| Workload | Current Metal n | Reused CPU n | CPU F32 mean ms | Previous Metal F32 mean ms | Current Metal F32 mean ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| short-256 | 10 | 10 | 13271.713 | 622.549 | 610.332 |
+| medium-1024 | 10 | 10 | 51347.788 | 2485.774 | 2446.849 |
+| long-4096 | 10 | 3 | 212415.691 | 10266.398 | 10105.794 |
+| mixed-8-fields | 10 | 10 | 51335.671 | 2503.339 | 2460.319 |
+| wide-32-fields | 10 | 3 | 156584.235 | 7677.114 | 7559.214 |
+| large-option-schema | 10 | 3 | 213301.310 | 10307.017 | 10135.600 |
+| minimal-139 | 20 | — | — | 449.957 | 441.842 |
+| compact-192 | 20 | — | — | 493.134 | 484.187 |
+
+F32 improves about 1.5–2.0% versus its prior means while retaining projection precision. The CPU comparison uses the unchanged pure-Rust Candle backend without Accelerate/MKL and reuses its existing samples. Full-weight performance was not repeated on CPU; its current unit/operator/build gates passed.
+
+| Profile | Sampled GPU peak GiB | OS peak footprint GiB | Concurrency 1 / 2 / 8 / 16 successful req/s |
+| --- | ---: | ---: | --- |
+| metal:f32 | 35.920 | 40.336 | 1.635 / 1.639 / 1.637 / 1.636 |
+| metal:f16 | 18.527 | 26.773 | 4.469 / 4.497 / 4.489 / 4.472 |
+
+Each profile completed 38 of 54 managed admissions with 16 expected `queueFull` rejections and no inference errors. Concurrency uses the 256-token workload and one device owner; it queues requests rather than adding GPU throughput. Both peaks fit the unchanged conservative device/host plans. GPU samples and process footprint overlap and must not be added; memory remains broadly unchanged versus the prior campaign. F16 snapshot verification/model loading took 6.356/17.446 s; these phases are excluded from warm latency.
+
+All six full-model text/context/PNG/JPEG qualifications reproduce the previous maximum/mean errors exactly under the unchanged 1e-3/1e-4 gates. Both real authenticated HTTP and CLI/server checks passed, including exact answers, image probabilities, provenance, metrics and shutdown. Default/vision/Metal builds/tests, formatting, pedantic and production boundary lints, artifacts, benchmark tests and warning-free docs passed. See [the verification report](clef-flash-verification.md) and [qualification JSON](benchmarks/flash-metal-prefill/qualification.json).
+
+The [operator evidence](benchmarks/flash-metal-prefill/operator-diagnostics.json) records 192 GEMM sweep means, 42 FFN tile samples, five SIMD value widths, the complete test-only chunkwise algorithm and the raw full-model rejection data for the combined one-dimensional-walk/initial-FFN prototype. Four-column SIMD reuse and FFN fusion are enabled. The original two-dimensional grid/dynamic-K projection path is retained; the slower chunkwise candidate has no serving route and is absent from both release executables. Synthetic/barrier timings are excluded from normal-path claims. This remains mixed F16 with F32-sensitive computation; FP8 is not implemented.
+
 ## Previous projection and pointwise campaign
 
 The committed `190a459` implementation completed the same eight workloads on this MBP, sequentially in F32 and mixed F16, with 79 normal samples and 54 managed admission attempts per precision. Each case has one excluded warmup. The [raw report](benchmarks/flash-metal-tuned/report.md) preserves all samples and environment/executable/configuration hashes. The implementation adds shape-selected matrix tiles, direct half output, fused RMSNorm and fused causal convolution; the prior campaigns below remain intact.

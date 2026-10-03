@@ -95,6 +95,23 @@ Authenticated full-weight HTTP regression passed on F32 (34.05 s) and mixed F16 
 
 After the commit, the final Metal build/test/pedantic gate, five recurrence/attention diagnostics, both projection tiles and three pointwise checks passed again. The backbone category diagnostic completed all four lengths. The [normal benchmark](benchmarks/flash-metal-tuned/report.md) then completed 79 samples per precision and 54 managed admissions per precision. Independent checks verified completion flags, exact source/executable/configuration identity, unchanged YAML workloads, raw sample counts/statistics, expected overload errors and device/host capacity bounds. No Rust/MSL source changed after the measured implementation commit. The [qualification JSON](benchmarks/flash-metal-tuned/qualification.json) retains unrounded maximum/mean errors and oracle fixture hashes; category/geometry measurements are separate diagnostics.
 
+## Long-prefill qualification
+
+The `874255d` implementation enables four-column SIMD DeltaNet on M5 and fused gate/up/SiLU/product for long mixed-F16 FFN inputs. The 32-token chunkwise algorithm remains a test-only candidate because local operator timing regresses; it is not a serving backend. The CPU tensor equations, pinned weights, encoder and probability gates are unchanged.
+
+| Profile | Corpus | Probabilities | Maximum absolute error | Mean absolute error | Test elapsed |
+| --- | --- | ---: | ---: | ---: | ---: |
+| f32 | 100 text requests | 800 | 0.000003114343 | 0.000000202775 | 106.50 s |
+| f16 | 100 text requests | 800 | 0.000443369150 | 0.000037016605 | 52.61 s |
+| f32 | 4,096-token context / PNG | 24 | 0.000005424023 | 0.000001789847 | 54.06 s |
+| f32 | Baseline / progressive JPEG | 16 | 0.000004351139 | 0.000001026667 | 33.63 s |
+| f16 | 4,096-token context / PNG | 24 | 0.000328183174 | 0.000090070253 | 32.31 s |
+| f16 | Baseline / progressive JPEG | 16 | 0.000418752432 | 0.000095413183 | 25.14 s |
+
+All six maximum/mean errors exactly reproduce the preceding tuning campaign; limits remain 1e-3 / 1e-4. Authenticated full-weight HTTP tests passed in 32.74 s (F32) and 25.07 s (mixed F16). Both release CLI/server checks passed with offline PNG/JPEG decisions, reference probabilities, protected discovery/metrics, provenance, SIGTERM drain and exact CLI/HTTP equality. These qualification times are not controlled performance samples.
+
+Default/vision/Metal builds and tests, nightly formatting, pedantic Clippy, strict production boundary lints, artifact checks, seven benchmark tests and warning-free public documentation passed. GPU tests cover all five SIMD value widths, reference reduction drift, partial FFN/GEMM tiles, exact half-rounded fused outputs and rejected malformed custom-dispatch inputs. The CPU full-weight performance run is reused because its equations are unchanged. Dependencies/lockfiles and release packaging did not change; audit/deny were not repeated for this kernel-only work. The [qualification JSON](benchmarks/flash-metal-prefill/qualification.json) retains fixture hashes and unrounded errors.
+
 ## Resource and lifecycle evidence
 
 For CPU F32 text at 4,096 tokens, `plan-memory` reported 60,319,553,990 host bytes and 48,348,934,963 device/accounted execution bytes, including safe shard staging and a 20% reserve. Images add a 1 GiB allowance. Both budgets must pass before model allocation; these estimates are conservative admission policy, not a physical-memory reservation.

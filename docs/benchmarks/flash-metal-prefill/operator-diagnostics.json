@@ -1,0 +1,2781 @@
+{
+  "schemaVersion": 1,
+  "implementationCommit": "874255d32e759a8a72fbf931e9366a97799beb50",
+  "purpose": "Synchronized synthetic operator diagnostics and exploratory normal-path rejection evidence; excluded from the final performance sample matrix.",
+  "gemmSweep": [
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 5.499
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 20.256
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 4.25
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 20.641
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.709
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 12.544
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.553
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 6.268
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.397
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 18.904
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 4.745
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 21.663
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.797
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 11.588
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.591
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 5.933
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.54
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 18.788
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 4.624
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 21.234
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.708
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 11.695
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.533
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 5.859
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.55
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 18.906
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 4.229
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 22.036
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.679
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 11.6
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.575
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 6.122
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.933
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 15.812
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 4.08
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 15.565
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.763
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.823
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.6
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 5.122
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.608
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 16.858
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 4.584
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 17.686
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.875
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 10.293
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.577
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 5.368
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.654
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 16.371
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 4.385
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 16.154
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.787
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.962
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.601
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 5.17
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.982
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 15.872
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 4.34
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 17.098
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.783
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.929
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.56
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 5.156
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.928
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 16.078
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 3.943
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 20.403
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.74
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.782
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.547
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 5.138
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.912
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 16.346
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 4.236
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 16.145
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.806
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 10.126
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.577
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 5.239
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.129
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 16.139
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 4.145
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 15.641
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.776
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.872
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.56
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 5.095
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.431
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 15.874
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 4.03
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 14.726
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.756
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.82
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.561
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 5.077
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 3.996
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 15.695
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 3.766
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 13.896
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.693
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.594
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.503
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.986
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.771
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 16.399
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 3.939
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 14.535
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.755
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 10.021
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.537
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 5.141
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.841
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 16.046
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 3.844
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 14.323
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.678
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.676
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.52
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 5.018
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.556
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 15.724
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 3.769
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 14.36
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.669
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.627
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.525
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 0,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.954
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.729
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 15.5
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 3.757
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 17.751
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.683
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.519
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.493
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.896
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.87
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 16.054
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 3.892
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 14.516
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.707
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.73
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.548
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 5.029
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.796
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 15.882
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 3.815
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 14.182
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.691
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.577
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.525
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.928
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.868
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 15.607
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 3.816
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 13.998
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.697
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.549
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.526
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 1,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.96
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.031
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 15.185
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 3.789
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 16.364
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.625
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.491
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.492
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 0,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.903
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.851
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 15.47
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 3.863
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 14.347
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.726
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.727
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.565
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 5.018
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.372
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 15.525
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 3.737
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 13.636
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.659
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.501
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.479
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 512,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.914
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.704
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 15.514
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 3.764
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "samples": 3,
+      "meanMs": 14.259
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 2.661
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 9.5
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 1.529
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "walk": 2,
+      "kBlock": 1024,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "samples": 3,
+      "meanMs": 4.901
+    }
+  ],
+  "ffnTileSamples": [
+    {
+      "tileM": 16,
+      "tileN": 256,
+      "rows": 1024,
+      "sample": 1,
+      "milliseconds": 11.434
+    },
+    {
+      "tileM": 16,
+      "tileN": 256,
+      "rows": 1024,
+      "sample": 2,
+      "milliseconds": 11.268
+    },
+    {
+      "tileM": 16,
+      "tileN": 256,
+      "rows": 1024,
+      "sample": 3,
+      "milliseconds": 11.185
+    },
+    {
+      "tileM": 16,
+      "tileN": 256,
+      "rows": 4096,
+      "sample": 1,
+      "milliseconds": 41.692
+    },
+    {
+      "tileM": 16,
+      "tileN": 256,
+      "rows": 4096,
+      "sample": 2,
+      "milliseconds": 42.828
+    },
+    {
+      "tileM": 16,
+      "tileN": 256,
+      "rows": 4096,
+      "sample": 3,
+      "milliseconds": 41.956
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 1024,
+      "sample": 1,
+      "milliseconds": 7.604
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 1024,
+      "sample": 2,
+      "milliseconds": 7.201
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 1024,
+      "sample": 3,
+      "milliseconds": 7.16
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 4096,
+      "sample": 1,
+      "milliseconds": 29.582
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 4096,
+      "sample": 2,
+      "milliseconds": 29.458
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 4096,
+      "sample": 3,
+      "milliseconds": 29.538
+    },
+    {
+      "tileM": 32,
+      "tileN": 256,
+      "rows": 1024,
+      "sample": 1,
+      "milliseconds": 7.317
+    },
+    {
+      "tileM": 32,
+      "tileN": 256,
+      "rows": 1024,
+      "sample": 2,
+      "milliseconds": 8.448
+    },
+    {
+      "tileM": 32,
+      "tileN": 256,
+      "rows": 1024,
+      "sample": 3,
+      "milliseconds": 7.279
+    },
+    {
+      "tileM": 32,
+      "tileN": 256,
+      "rows": 4096,
+      "sample": 1,
+      "milliseconds": 29.154
+    },
+    {
+      "tileM": 32,
+      "tileN": 256,
+      "rows": 4096,
+      "sample": 2,
+      "milliseconds": 28.905
+    },
+    {
+      "tileM": 32,
+      "tileN": 256,
+      "rows": 4096,
+      "sample": 3,
+      "milliseconds": 28.874
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 1024,
+      "sample": 1,
+      "milliseconds": 7.323
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 1024,
+      "sample": 2,
+      "milliseconds": 7.118
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 1024,
+      "sample": 3,
+      "milliseconds": 7.158
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 4096,
+      "sample": 1,
+      "milliseconds": 35.109
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 4096,
+      "sample": 2,
+      "milliseconds": 35.294
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 4096,
+      "sample": 3,
+      "milliseconds": 35.301
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 1024,
+      "sample": 1,
+      "milliseconds": 7.282
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 1024,
+      "sample": 2,
+      "milliseconds": 7.141
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 1024,
+      "sample": 3,
+      "milliseconds": 7.168
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 4096,
+      "sample": 1,
+      "milliseconds": 29.449
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 4096,
+      "sample": 2,
+      "milliseconds": 29.285
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 4096,
+      "sample": 3,
+      "milliseconds": 28.856
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 1024,
+      "sample": 1,
+      "milliseconds": 7.248
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 1024,
+      "sample": 2,
+      "milliseconds": 7.277
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 1024,
+      "sample": 3,
+      "milliseconds": 7.206
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 4096,
+      "sample": 1,
+      "milliseconds": 31.498
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 4096,
+      "sample": 2,
+      "milliseconds": 31.129
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 4096,
+      "sample": 3,
+      "milliseconds": 31.246
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 1024,
+      "sample": 1,
+      "milliseconds": 9.059
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 1024,
+      "sample": 2,
+      "milliseconds": 8.359
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 1024,
+      "sample": 3,
+      "milliseconds": 8.696
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 4096,
+      "sample": 1,
+      "milliseconds": 33.063
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 4096,
+      "sample": 2,
+      "milliseconds": 33.379
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 4096,
+      "sample": 3,
+      "milliseconds": 32.918
+    }
+  ],
+  "deltaVectorSweep": [
+    {
+      "tokens": 256,
+      "valuesPerSimd": 1,
+      "samples": 3,
+      "meanMs": 2.186
+    },
+    {
+      "tokens": 1024,
+      "valuesPerSimd": 1,
+      "samples": 3,
+      "meanMs": 6.419
+    },
+    {
+      "tokens": 4096,
+      "valuesPerSimd": 1,
+      "samples": 3,
+      "meanMs": 24.522
+    },
+    {
+      "tokens": 256,
+      "valuesPerSimd": 2,
+      "samples": 3,
+      "meanMs": 1.455
+    },
+    {
+      "tokens": 1024,
+      "valuesPerSimd": 2,
+      "samples": 3,
+      "meanMs": 5.327
+    },
+    {
+      "tokens": 4096,
+      "valuesPerSimd": 2,
+      "samples": 3,
+      "meanMs": 19.076
+    },
+    {
+      "tokens": 256,
+      "valuesPerSimd": 4,
+      "samples": 3,
+      "meanMs": 1.335
+    },
+    {
+      "tokens": 1024,
+      "valuesPerSimd": 4,
+      "samples": 3,
+      "meanMs": 4.354
+    },
+    {
+      "tokens": 4096,
+      "valuesPerSimd": 4,
+      "samples": 3,
+      "meanMs": 17.652
+    },
+    {
+      "tokens": 256,
+      "valuesPerSimd": 8,
+      "samples": 3,
+      "meanMs": 2.102
+    },
+    {
+      "tokens": 1024,
+      "valuesPerSimd": 8,
+      "samples": 3,
+      "meanMs": 5.403
+    },
+    {
+      "tokens": 4096,
+      "valuesPerSimd": 8,
+      "samples": 3,
+      "meanMs": 18.435
+    },
+    {
+      "tokens": 256,
+      "valuesPerSimd": 16,
+      "samples": 3,
+      "meanMs": 1.426
+    },
+    {
+      "tokens": 1024,
+      "valuesPerSimd": 16,
+      "samples": 3,
+      "meanMs": 5.316
+    },
+    {
+      "tokens": 4096,
+      "valuesPerSimd": 16,
+      "samples": 3,
+      "meanMs": 18.457
+    }
+  ],
+  "chunkCandidate": [
+    {
+      "tokens": 256,
+      "algorithm": "vector-recurrence",
+      "samples": 3,
+      "meanMs": 1.209
+    },
+    {
+      "tokens": 256,
+      "algorithm": "chunkwise",
+      "samples": 3,
+      "meanMs": 2.377
+    },
+    {
+      "tokens": 1024,
+      "algorithm": "vector-recurrence",
+      "samples": 3,
+      "meanMs": 2.653
+    },
+    {
+      "tokens": 1024,
+      "algorithm": "chunkwise",
+      "samples": 3,
+      "meanMs": 5.927
+    },
+    {
+      "tokens": 4096,
+      "algorithm": "vector-recurrence",
+      "samples": 3,
+      "meanMs": 8.752
+    },
+    {
+      "tokens": 4096,
+      "algorithm": "chunkwise",
+      "samples": 3,
+      "meanMs": 21.914
+    }
+  ],
+  "normalPathCandidateRejection": [
+    {
+      "variant": "immutable-baseline",
+      "implementationCommit": "190a459c52c3389c79ed0ad05ebf532c365fd81c",
+      "binarySha256": "340cd09a14e41012a323112d06764793b7f3f238ef2278ad3b48675a35f9a563",
+      "configSha256": "8416ce025790cb8ef1d0b7deb160365897fdabd8f92e20023e985e07c0fbc0cd",
+      "startedAt": "2026-10-03T02:53:17.081901+00:00",
+      "threadSettings": {
+        "RAYON_NUM_THREADS": "8",
+        "CANDLE_NUM_THREADS": "8"
+      },
+      "cases": [
+        {
+          "workload": {
+            "name": "short-256",
+            "tokens": 256,
+            "fields": 1,
+            "options": 2,
+            "samples": 3
+          },
+          "actualTokens": 256,
+          "samplesMs": [
+            226.304917,
+            226.20499999999998,
+            225.827958
+          ],
+          "latency": {
+            "count": 3,
+            "meanMs": 226.11262499999998,
+            "minMs": 225.827958,
+            "p50Ms": 226.20499999999998,
+            "p95Ms": 226.304917,
+            "p99Ms": 226.304917,
+            "maxMs": 226.304917,
+            "standardDeviationMs": 0.20538147821228953
+          }
+        },
+        {
+          "workload": {
+            "name": "medium-1024",
+            "tokens": 1024,
+            "fields": 1,
+            "options": 2,
+            "samples": 3
+          },
+          "actualTokens": 1024,
+          "samplesMs": [
+            880.7099579999999,
+            878.9478750000001,
+            880.9425
+          ],
+          "latency": {
+            "count": 3,
+            "meanMs": 880.200111,
+            "minMs": 878.9478750000001,
+            "p50Ms": 880.7099579999999,
+            "p95Ms": 880.9425,
+            "p99Ms": 880.9425,
+            "maxMs": 880.9425,
+            "standardDeviationMs": 0.8905392355993713
+          }
+        },
+        {
+          "workload": {
+            "name": "long-4096",
+            "tokens": 4096,
+            "fields": 1,
+            "options": 2,
+            "samples": 3
+          },
+          "actualTokens": 4096,
+          "samplesMs": [
+            3919.5432920000003,
+            3933.311208,
+            3929.702334
+          ],
+          "latency": {
+            "count": 3,
+            "meanMs": 3927.518944666667,
+            "minMs": 3919.5432920000003,
+            "p50Ms": 3929.702334,
+            "p95Ms": 3933.311208,
+            "p99Ms": 3933.311208,
+            "maxMs": 3933.311208,
+            "standardDeviationMs": 5.828908959170524
+          }
+        },
+        {
+          "workload": {
+            "name": "minimal-139",
+            "tokens": 139,
+            "fields": 1,
+            "options": 2,
+            "samples": 3
+          },
+          "actualTokens": 139,
+          "samplesMs": [
+            170.54208400000002,
+            170.6445,
+            170.967125
+          ],
+          "latency": {
+            "count": 3,
+            "meanMs": 170.717903,
+            "minMs": 170.54208400000002,
+            "p50Ms": 170.6445,
+            "p95Ms": 170.967125,
+            "p99Ms": 170.967125,
+            "maxMs": 170.967125,
+            "standardDeviationMs": 0.18111867790116695
+          }
+        }
+      ]
+    },
+    {
+      "variant": "rejected-grouped-1d-and-ffn-prototype",
+      "implementationCommit": null,
+      "binarySha256": "ddd5459af1cc19706f29c12ca4a3ab504c258ccf38c8cb97fba0db648e167cb0",
+      "configSha256": "8416ce025790cb8ef1d0b7deb160365897fdabd8f92e20023e985e07c0fbc0cd",
+      "startedAt": "2026-10-03T02:54:41.210249+00:00",
+      "threadSettings": {
+        "RAYON_NUM_THREADS": "8",
+        "CANDLE_NUM_THREADS": "8"
+      },
+      "cases": [
+        {
+          "workload": {
+            "name": "short-256",
+            "tokens": 256,
+            "fields": 1,
+            "options": 2,
+            "samples": 3
+          },
+          "actualTokens": 256,
+          "samplesMs": [
+            228.949875,
+            229.719375,
+            230.219917
+          ],
+          "latency": {
+            "count": 3,
+            "meanMs": 229.62972233333335,
+            "minMs": 228.949875,
+            "p50Ms": 229.719375,
+            "p95Ms": 230.219917,
+            "p99Ms": 230.219917,
+            "maxMs": 230.219917,
+            "standardDeviationMs": 0.5223535653950274
+          }
+        },
+        {
+          "workload": {
+            "name": "medium-1024",
+            "tokens": 1024,
+            "fields": 1,
+            "options": 2,
+            "samples": 3
+          },
+          "actualTokens": 1024,
+          "samplesMs": [
+            858.420125,
+            860.816542,
+            859.32175
+          ],
+          "latency": {
+            "count": 3,
+            "meanMs": 859.5194723333334,
+            "minMs": 858.420125,
+            "p50Ms": 859.32175,
+            "p95Ms": 860.816542,
+            "p99Ms": 860.816542,
+            "maxMs": 860.816542,
+            "standardDeviationMs": 0.9882726345485827
+          }
+        },
+        {
+          "workload": {
+            "name": "long-4096",
+            "tokens": 4096,
+            "fields": 1,
+            "options": 2,
+            "samples": 3
+          },
+          "actualTokens": 4096,
+          "samplesMs": [
+            4072.614417,
+            4037.135083,
+            4103.056875
+          ],
+          "latency": {
+            "count": 3,
+            "meanMs": 4070.9354583333334,
+            "minMs": 4037.135083,
+            "p50Ms": 4072.614417,
+            "p95Ms": 4103.056875,
+            "p99Ms": 4103.056875,
+            "maxMs": 4103.056875,
+            "standardDeviationMs": 26.938632009020054
+          }
+        },
+        {
+          "workload": {
+            "name": "minimal-139",
+            "tokens": 139,
+            "fields": 1,
+            "options": 2,
+            "samples": 3
+          },
+          "actualTokens": 139,
+          "samplesMs": [
+            170.594208,
+            170.523,
+            170.56775
+          ],
+          "latency": {
+            "count": 3,
+            "meanMs": 170.56165266666667,
+            "minMs": 170.523,
+            "p50Ms": 170.56775,
+            "p95Ms": 170.594208,
+            "p99Ms": 170.594208,
+            "maxMs": 170.594208,
+            "standardDeviationMs": 0.029388522945005935
+          }
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Production retains walk=0, the original two-dimensional grid; walk=1 is padded Morton and walk=2 groups eight row tiles in one dimension. Explicit K-block variants are not enabled.",
+    "GEMM/vector/chunk entries preserve three-sample means rounded to 0.001 ms; individual samples were not emitted. FFN tile entries preserve all three emitted timings after one excluded warmup.",
+    "Chunkwise checks use only synthetic inputs and are not full-model release qualification. The candidate is absent from serving binaries.",
+    "Exploratory candidate source was uncommitted; the exact measured executable/configuration hashes and all raw timings are retained. The immutable baseline executable corresponds to the recorded 190a459 source despite its runner metadata using the later documentation HEAD.",
+    "The final normal-path performance claims use the separate completed 100-sample-per-profile reports, not these diagnostic timings.",
+    "The rejected normal-path prototype changes grouped launch order and the initial FFN fusion together. Its A/B comparison does not isolate either change individually; the final implementation retains the qualified two-dimensional grid and the separately revised accumulator-reusing fusion."
+  ]
+}

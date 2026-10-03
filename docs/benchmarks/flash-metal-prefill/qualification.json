@@ -1,0 +1,78 @@
+{
+  "implementationCommit": "874255d32e759a8a72fbf931e9366a97799beb50",
+  "revision": "17f0b0ad64efb65d273590632833508766b2aae6",
+  "maximumAbsoluteErrorLimit": 0.001,
+  "meanAbsoluteErrorLimit": 0.0001,
+  "results": [
+    {
+      "profile": "metal:0:f32:text:4096",
+      "fixture": "flash-f32.json",
+      "fixtureSha256": "fcb6b18758bde75b94367b40188fb8ca88f2f988e1fba2358bd735fbb3c5df51",
+      "probabilities": 800,
+      "maximumAbsoluteError": 3.11434268951416e-06,
+      "meanAbsoluteError": 2.0277482690289616e-07,
+      "elapsedSeconds": 106.5
+    },
+    {
+      "profile": "metal:0:f16:text:4096",
+      "fixture": "flash-f32.json",
+      "fixtureSha256": "fcb6b18758bde75b94367b40188fb8ca88f2f988e1fba2358bd735fbb3c5df51",
+      "probabilities": 800,
+      "maximumAbsoluteError": 0.00044336915016174316,
+      "meanAbsoluteError": 3.7016604619566354e-05,
+      "elapsedSeconds": 52.61
+    },
+    {
+      "profile": "metal:0:f32:image:4096",
+      "fixture": "flash-extended-f32.json",
+      "fixtureSha256": "54f7a15dd36b0af4dab20c6f530b3a288adb32428780b9b94632d844123fc682",
+      "probabilities": 24,
+      "maximumAbsoluteError": 5.424022674560547e-06,
+      "meanAbsoluteError": 1.789846767981847e-06,
+      "elapsedSeconds": 54.06
+    },
+    {
+      "profile": "metal:0:f32:image:4096",
+      "fixture": "flash-jpeg-f32.json",
+      "fixtureSha256": "6edab3adcda0088cf5c147e8daeb1e36ead656e55dd4414e9265e094e7e66514",
+      "probabilities": 16,
+      "maximumAbsoluteError": 4.351139068603516e-06,
+      "meanAbsoluteError": 1.0266667231917381e-06,
+      "elapsedSeconds": 33.63
+    },
+    {
+      "profile": "metal:0:f16:image:4096",
+      "fixture": "flash-extended-f32.json",
+      "fixtureSha256": "54f7a15dd36b0af4dab20c6f530b3a288adb32428780b9b94632d844123fc682",
+      "probabilities": 24,
+      "maximumAbsoluteError": 0.0003281831741333008,
+      "meanAbsoluteError": 9.007025316047172e-05,
+      "elapsedSeconds": 32.31
+    },
+    {
+      "profile": "metal:0:f16:image:4096",
+      "fixture": "flash-jpeg-f32.json",
+      "fixtureSha256": "6edab3adcda0088cf5c147e8daeb1e36ead656e55dd4414e9265e094e7e66514",
+      "probabilities": 16,
+      "maximumAbsoluteError": 0.00041875243186950684,
+      "meanAbsoluteError": 9.541318286210299e-05,
+      "elapsedSeconds": 25.14
+    }
+  ],
+  "httpElapsedSeconds": {
+    "metal:f32": 32.74,
+    "metal:f16": 25.07
+  },
+  "cliHttpImageSmoke": {
+    "metal:f32": "passed",
+    "metal:f16": "passed"
+  },
+  "notes": [
+    "All six corpus maximum and mean errors reproduce the prior committed tuning campaign exactly.",
+    "Elapsed qualification durations are diagnostics, not controlled performance samples.",
+    "CPU equations are unchanged; default/vision CPU regression gates passed and the prior full-weight CPU performance campaign is reused.",
+    "Default/vision/Metal builds, tests, nightly formatting, pedantic and production-boundary Clippy, artifact checks, benchmark tests and warning-free public docs passed.",
+    "Dependencies and lockfiles did not change; audit/deny were not repeated for these kernel changes. The preceding policy qualification remains documented.",
+    "Chunkwise DeltaNet is a test-only candidate; these full-model release results qualify the enabled vector recurrence and FFN fusion."
+  ]
+}

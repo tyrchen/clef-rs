@@ -1,0 +1,84 @@
+{
+  "startedAt": "2026-10-03T03:21:42.177039+00:00",
+  "hardware": {
+    "system": "Darwin",
+    "release": "25.5.0",
+    "machine": "arm64",
+    "cpu": "Apple M5 Pro",
+    "ramBytes": 68719476736,
+    "cpuCores": 18,
+    "osVersion": "26.5.2",
+    "gpus": [
+      {
+        "model": "Apple M5 Pro",
+        "cores": "20",
+        "metal": "spdisplays_metal4"
+      }
+    ]
+  },
+  "rust": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "gitCommit": "874255d32e759a8a72fbf931e9366a97799beb50",
+  "gitDirty": false,
+  "binarySha256": "2c239aa584fe685c2cadfc2db280bdd4f9493378cd249318fb29e80e272aea40",
+  "configSha256": "ff7212e61c7abb57fa6cb94bc06b386608bb3cfc45e9569935f320e05d4a503f",
+  "profiles": [
+    "metal:f32",
+    "metal:f16"
+  ],
+  "threadSettings": {
+    "RAYON_NUM_THREADS": "8",
+    "CANDLE_NUM_THREADS": "8"
+  },
+  "processes": {
+    "metal:f32": {
+      "wallSeconds": 498.4633445001673,
+      "peakRssBytes": 31737954304,
+      "command": [
+        "/Users/tchen/.target/release/examples/benchmark",
+        "--cache-dir",
+        "/Users/tchen/.cache/clef-rs",
+        "--config",
+        "/Users/tchen/projects/mycode/rust/clef-rs/examples/clef.mbp-benchmark.yaml",
+        "--device",
+        "metal",
+        "--dtype",
+        "f32",
+        "--output",
+        "/Users/tchen/projects/mycode/rust/clef-rs/docs/benchmarks/flash-metal-prefill/metal-f32.json"
+      ],
+      "peakFootprintBytes": 43310152640,
+      "timeRealSeconds": 498.44,
+      "userCpuSeconds": 33.98,
+      "systemCpuSeconds": 18.01,
+      "averageCpuCores": 0.1043054329508065
+    },
+    "metal:f16": {
+      "wallSeconds": 204.34251704183407,
+      "peakRssBytes": 27453980672,
+      "command": [
+        "/Users/tchen/.target/release/examples/benchmark",
+        "--cache-dir",
+        "/Users/tchen/.cache/clef-rs",
+        "--config",
+        "/Users/tchen/projects/mycode/rust/clef-rs/examples/clef.mbp-benchmark.yaml",
+        "--device",
+        "metal",
+        "--dtype",
+        "f16",
+        "--output",
+        "/Users/tchen/projects/mycode/rust/clef-rs/docs/benchmarks/flash-metal-prefill/metal-f16.json"
+      ],
+      "peakFootprintBytes": 28746927904,
+      "timeRealSeconds": 204.31,
+      "userCpuSeconds": 38.0,
+      "systemCpuSeconds": 8.18,
+      "averageCpuCores": 0.22602907346679066
+    }
+  },
+  "postMeasurementNotes": [
+    "The measured implementation is commit 874255d32e759a8a72fbf931e9366a97799beb50 with a clean source tree at launch. Independent checks verified the executable/workload SHA-256, unchanged measured source, 100 normal samples per precision, exact encoded lengths, statistics, 54/38/16 managed admissions and device/host capacity bounds.",
+    "The preceding flash-metal-tuned campaign is preserved. Actual token counts, field/option schemas, warmups, thread settings and concurrency construction are unchanged; long-4096, wide-32-fields and large-option-schema increase from n=3 to n=10. The current matrix totals 100 direct samples per precision instead of 79.",
+    "CPU tensor equations are unchanged. The existing 82-minute CPU full-weight performance campaign is reused, with current CPU build/parity/regression gates repeated; no new CPU timing is implied by this Metal-only campaign.",
+    "See [numerical qualification](qualification.json), [operator and rejected-candidate diagnostics](operator-diagnostics.json), and [the campaign comparison](../../clef-flash-metal-performance.md). Chunkwise DeltaNet is a test-only candidate and is absent from the measured benchmark and serving executables."
+  ]
+}
