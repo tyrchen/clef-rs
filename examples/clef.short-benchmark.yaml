@@ -1,0 +1,7 @@
+schemaVersion: 1
+warmupPerCase: 2
+cases:
+  - { name: short-139, tokens: 139, fields: 1, options: 2, samples: 20 }
+  - { name: short-256, tokens: 256, fields: 1, options: 2, samples: 20 }
+concurrency: [1]
+requestsPerWorker: 1

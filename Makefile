@@ -216,3 +216,37 @@ profile-metal-ffn:
 	$(CARGO) test -p clef-rs-core --features metal test_should_profile_metal4_gated_tiles --release -- --ignored --nocapture
 
 .PHONY: profile-metal-ffn
+
+# Optional research environment; never changes the serving dependencies.
+METAL_CANDIDATE_PYTHON ?= $(CURDIR)/.venv-metal-candidates/bin/python
+METAL_CANDIDATE_RESULTS ?= $(CURDIR)/docs/benchmarks/flash-metal-candidates/operators.json
+
+metal-candidate-env:
+	uv venv .venv-metal-candidates --python 3.12
+	uv pip install --python '$(METAL_CANDIDATE_PYTHON)' mlx==0.32.3 mlx-metal==0.32.3
+
+profile-metal-candidates:
+	$(METAL_CANDIDATE_PYTHON) tests/performance/metal_candidates.py --output '$(METAL_CANDIDATE_RESULTS)'
+
+.PHONY: metal-candidate-env profile-metal-candidates
+
+PREFIX_REUSE_CONFIG ?= $(CURDIR)/examples/clef.prefix-reuse-benchmark.yaml
+PREFIX_REUSE_RESULTS ?= $(CURDIR)/docs/benchmarks/flash-prefix-reuse
+PREFIX_REUSE_PROFILES ?= metal:f16
+PREFIX_REUSE_BASELINE ?=
+
+bench-prefix-reuse:
+	$(CARGO) build -p clef-rs-core --example benchmark --release --features metal
+	$(PYTHON) tests/performance/prefix_reuse.py --binary '$(CLEF_BENCH_BINARY)' $(if $(PREFIX_REUSE_BASELINE),--baseline-binary '$(PREFIX_REUSE_BASELINE)',) --cache '$(CLEF_RELEASE_CACHE)' --config '$(PREFIX_REUSE_CONFIG)' --output '$(PREFIX_REUSE_RESULTS)' --profiles $(PREFIX_REUSE_PROFILES) --threads '$(BENCHMARK_THREADS)'
+
+prefix-reuse-report:
+	$(PYTHON) tests/performance/prefix_reuse.py --output '$(PREFIX_REUSE_RESULTS)' --render-only
+
+verify-prefix-reuse:
+	$(CARGO) test -p clef-rs-core prefix --features vision
+	$(CARGO) test -p clef-rs-core --features metal test_should_resume --release -- --ignored
+	$(CARGO) test -p clef-rs-core --features metal test_should_apply_lower_right --release -- --ignored
+	CLEF_RELEASE_DEVICE=metal CLEF_RELEASE_DTYPE=f16 CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' $(CARGO) test -p clef-rs-core --features metal test_should_reuse_full_flash_prefix_across --release -- --ignored --nocapture
+	CLEF_RELEASE_DEVICE=metal CLEF_RELEASE_DTYPE=f32 CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' $(CARGO) test -p clef-rs-core --features metal test_should_reuse_full_flash_prefix_across --release -- --ignored --nocapture
+
+.PHONY: bench-prefix-reuse prefix-reuse-report verify-prefix-reuse

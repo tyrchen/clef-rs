@@ -11,6 +11,7 @@ mod error;
 #[cfg(feature = "vision")]
 pub mod media;
 mod models;
+mod prefix_cache;
 pub mod runtime;
 pub mod types;
 

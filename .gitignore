@@ -3,6 +3,7 @@
 .DS_Store
 
 .venv-reference/
+.venv-metal-candidates/
 model-cache/
 __pycache__/
 

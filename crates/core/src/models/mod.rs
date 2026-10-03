@@ -110,6 +110,66 @@ mod tests {
         )
     }
     #[test]
+    fn test_should_resume_exact_prefix_with_changed_suffix_and_short_history() -> Result<()> {
+        prefix_parity(&Device::Cpu)
+    }
+    pub(super) fn prefix_parity(device: &Device) -> Result<()> {
+        let config: qwen::TextConfig = serde_json::from_slice(include_bytes!(
+            "../../fixtures/synthetic/backbone-config.json"
+        ))?;
+        let mut weights = weights::Weights::fixture_on(
+            include_bytes!("../../fixtures/synthetic/backbone.safetensors"),
+            device,
+        )?;
+        let backbone = qwen::Backbone::load(&mut weights, config)?;
+        let ids: Vec<u32> = (0..20).collect();
+        let expected = backbone.forward(&ids, &control())?;
+        for boundary in [1, 2, 3, 8, 19] {
+            let (captured, state) = backbone.prefill(&ids, &control(), None, Some(boundary))?;
+            assert_close(&captured, &expected)?;
+            let state = state.ok_or(Error::ArtifactMissing)?;
+            assert_eq!(
+                state.bytes()?,
+                backbone.prefix_bytes(boundary)?
+                    - if boundary < 3 {
+                        u64::try_from((3 - boundary) * 3 * 16 * 4)
+                            .map_err(|_| Error::InsufficientMemory)?
+                    } else {
+                        0
+                    }
+            );
+            let suffix = ids.get(boundary..).ok_or(Error::ArtifactMissing)?;
+            assert!(
+                backbone
+                    .prefill(suffix, &control(), Some(&state), Some(1))
+                    .is_err()
+            );
+            let resumed = backbone.prefill(suffix, &control(), Some(&state), None)?.0;
+            assert_close(&resumed, &expected)?;
+            let mut changed = ids.clone();
+            for id in changed.iter_mut().skip(boundary) {
+                *id += 20;
+            }
+            let suffix = changed.get(boundary..).ok_or(Error::ArtifactMissing)?;
+            let resumed = backbone.prefill(suffix, &control(), Some(&state), None)?.0;
+            assert_close(&resumed, &backbone.forward(&changed, &control())?)?;
+            // Resuming never mutates the shared state.
+            assert_close(
+                &backbone
+                    .prefill(
+                        ids.get(boundary..).ok_or(Error::ArtifactMissing)?,
+                        &control(),
+                        Some(&state),
+                        None,
+                    )?
+                    .0,
+                &expected,
+            )?;
+        }
+        assert!(backbone.prefill(&ids, &control(), None, Some(20)).is_err());
+        Ok(())
+    }
+    #[test]
     fn test_should_match_pinned_joint_head_all_question_types() -> Result<()> {
         head_parity(&Device::Cpu)
     }
@@ -148,6 +208,7 @@ mod tests {
             ids: (0..20).collect(),
             questions,
             truncated: 0,
+            state_end: 0,
             #[cfg(feature = "vision")]
             images: Vec::new(),
             #[cfg(feature = "vision")]
@@ -179,9 +240,14 @@ mod tests {
 mod metal_tests {
     use candle_core::Device;
 
-    use super::tests::{backbone_parity, head_parity};
+    use super::tests::{backbone_parity, head_parity, prefix_parity};
     use crate::Result;
 
+    #[test]
+    #[ignore = "requires a real Apple Metal device"]
+    fn test_should_resume_hybrid_prefix_on_metal() -> Result<()> {
+        prefix_parity(&Device::new_metal(0)?)
+    }
     #[test]
     #[ignore = "requires a real Apple Metal device"]
     fn test_should_match_hybrid_backbone_on_metal() -> Result<()> {

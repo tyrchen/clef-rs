@@ -1,8 +1,8 @@
 //! Checked F32 pointwise kernels preserving the reference arithmetic tree.
 
 use candle_core::{
-    CpuStorage, CustomOp2, DType, Device, Error as CandleError, Layout, MetalDevice, MetalStorage,
-    Result as CandleResult, Shape, Tensor, backend::BackendStorage,
+    CpuStorage, CustomOp2, CustomOp3, DType, Device, Error as CandleError, Layout, MetalDevice,
+    MetalStorage, Result as CandleResult, Shape, Tensor, backend::BackendStorage,
 };
 use candle_metal_kernels::metal::ComputePipeline;
 use objc2_metal::{MTLComputePipelineState, MTLSize};
@@ -191,6 +191,95 @@ impl CustomOp2 for ConvKernel {
     }
 }
 
+#[derive(Debug, Clone)]
+pub(super) struct DeltaPrepareKernel {
+    pipeline: ComputePipeline,
+}
+impl DeltaPrepareKernel {
+    pub fn new(device: &Device) -> Result<Option<Self>> {
+        let Device::Metal(device) = device else {
+            return Ok(None);
+        };
+        let pipeline = compile_pipeline(device, "clef_delta_prepare")?;
+        if pipeline.max_total_threads_per_threadgroup() < 64
+            || pipeline.as_ref().threadExecutionWidth() != 32
+        {
+            return Ok(None);
+        }
+        Ok(Some(Self { pipeline }))
+    }
+    pub fn forward(&self, mixed: &Tensor, g: &Tensor, beta: &Tensor) -> CandleResult<Tensor> {
+        mixed.apply_op3_no_bwd(g, beta, self)
+    }
+}
+impl CustomOp3 for DeltaPrepareKernel {
+    fn name(&self) -> &'static str {
+        "clef-delta-prepare"
+    }
+    fn cpu_fwd(
+        &self,
+        _: &CpuStorage,
+        _: &Layout,
+        _: &CpuStorage,
+        _: &Layout,
+        _: &CpuStorage,
+        _: &Layout,
+    ) -> CandleResult<(CpuStorage, Shape)> {
+        Err(CandleError::Msg(
+            "DeltaNet preparation requires Metal".into(),
+        ))
+    }
+    fn metal_fwd(
+        &self,
+        mixed: &MetalStorage,
+        ml: &Layout,
+        g: &MetalStorage,
+        gl: &Layout,
+        beta: &MetalStorage,
+        bl: &Layout,
+    ) -> CandleResult<(MetalStorage, Shape)> {
+        let (tokens, width) = ml.shape().dims2()?;
+        if !(1..=4096).contains(&tokens)
+            || width != 8192
+            || gl.dims() != [tokens, 32]
+            || bl.dims() != gl.dims()
+        {
+            return Err(CandleError::Msg("DeltaNet preparation dimensions".into()));
+        }
+        let offsets = [
+            checked_f32_buffer(mixed, ml)?,
+            checked_f32_buffer(g, gl)?,
+            checked_f32_buffer(beta, bl)?,
+        ];
+        let count = tokens * 32 * 386;
+        let device = mixed.device();
+        let output = device.new_buffer(count, DType::F32, "clef_delta_prepared")?;
+        let guard = device.command_encoder()?;
+        let encoder = guard.as_ref();
+        encoder.set_compute_pipeline_state(&self.pipeline);
+        for (index, (input, offset)) in [mixed, g, beta].into_iter().zip(offsets).enumerate() {
+            encoder.set_input_buffer(index, Some(input.buffer()), offset);
+        }
+        encoder.set_output_buffer(3, Some(&output), 0);
+        encoder.dispatch_thread_groups(
+            MTLSize {
+                width: tokens * 32,
+                height: 1,
+                depth: 1,
+            },
+            MTLSize {
+                width: 64,
+                height: 1,
+                depth: 1,
+            },
+        );
+        Ok((
+            MetalStorage::new(output, device.clone(), count, DType::F32),
+            Shape::from((tokens, 32, 386)),
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -265,6 +354,71 @@ mod tests {
                 assert_eq!(error.to_bits(), 0, "convolution {tokens}/{width}: {error}");
             }
         }
+        Ok(())
+    }
+    #[test]
+    #[ignore = "requires Metal; checks the complete reference preparation graph"]
+    #[allow(
+        clippy::cast_precision_loss,
+        reason = "bounded deterministic test indices"
+    )]
+    fn test_should_match_fused_delta_preparation_bit_exactly() -> Result<()> {
+        use candle_core::D;
+        let device = Device::new_metal(0)?;
+        let kernel = DeltaPrepareKernel::new(&device)?.ok_or(Error::ArtifactMissing)?;
+        for tokens in [1, 17, 139, 1024] {
+            for zero in [false, true] {
+                let mixed = Tensor::from_vec(
+                    (0..tokens * 8192)
+                        .map(|i| if zero { 0.0 } else { (i as f32 * 0.017).sin() })
+                        .collect(),
+                    (tokens, 8192),
+                    &device,
+                )?;
+                let g = Tensor::full(-0.03f32, (tokens, 32), &device)?;
+                let beta = Tensor::full(0.65f32, (tokens, 32), &device)?;
+                let repeat = Tensor::new((0..32u32).map(|i| i / 2).collect::<Vec<_>>(), &device)?;
+                let l2 = |x: Tensor| -> Result<Tensor> {
+                    let root = (x.sqr()?.sum_keepdim(D::Minus1)? + 1e-6)?.sqrt()?;
+                    Ok(x.broadcast_div(&root)?)
+                };
+                let q = (l2(mixed
+                    .narrow(1, 0, 2048)?
+                    .reshape((tokens, 16, 128))?
+                    .index_select(&repeat, 1)?)?
+                    / 128f64.sqrt())?;
+                let k = l2(mixed
+                    .narrow(1, 2048, 2048)?
+                    .reshape((tokens, 16, 128))?
+                    .index_select(&repeat, 1)?)?;
+                let v = mixed.narrow(1, 4096, 4096)?.reshape((tokens, 32, 128))?;
+                let expected = Tensor::cat(
+                    &[&q, &k, &v, &g.exp()?.unsqueeze(2)?, &beta.unsqueeze(2)?],
+                    2,
+                )?
+                .contiguous()?;
+                let actual = kernel.forward(&mixed, &g, &beta)?;
+                let error = (actual - expected)?
+                    .abs()?
+                    .flatten_all()?
+                    .max(0)?
+                    .to_scalar::<f32>()?;
+                assert_eq!(
+                    error.to_bits(),
+                    0,
+                    "preparation {tokens} zero={zero}: {error}"
+                );
+            }
+        }
+        assert!(
+            kernel
+                .forward(
+                    &Tensor::zeros((1, 8191), DType::F32, &device)?,
+                    &Tensor::zeros((1, 32), DType::F32, &device)?,
+                    &Tensor::zeros((1, 32), DType::F32, &device)?
+                )
+                .is_err()
+        );
         Ok(())
     }
     #[test]

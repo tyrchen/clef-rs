@@ -18,6 +18,7 @@ use tokio::{
 };
 use typed_builder::TypedBuilder;
 
+pub use crate::prefix_cache::{PrefixCacheConfig, PrefixCacheStats};
 use crate::{
     Error, Result,
     artifacts::{Manifest, VerifiedSnapshot},
@@ -28,6 +29,7 @@ use crate::{
         qwen::{Backbone, ModelConfig},
         weights::Weights,
     },
+    prefix_cache::{PrefixCache, Reuse},
     types::{DecisionRequest, DecisionResult, answers},
 };
 
@@ -329,6 +331,7 @@ pub struct DirectEngine {
     head: Head,
     device: Device,
     truncation: Truncation,
+    prefix_cache: PrefixCache,
     #[cfg(feature = "vision")]
     vision: Option<crate::models::vision::Vision>,
 }
@@ -348,13 +351,63 @@ impl DirectEngine {
         config.validate()?;
         MemoryPlan::estimate(&config, snapshot.manifest(), profile)
     }
+    /// Conservative model plan including live prefixes and a staged replacement.
+    ///
+    /// # Errors
+    /// Returns metadata, configuration, or arithmetic errors.
+    ///
+    /// ```no_run
+    /// # use clef_rs_core::{Result, DirectEngine, ExecutionProfile, artifacts::VerifiedSnapshot};
+    /// # use clef_rs_core::runtime::PrefixCacheConfig;
+    /// # fn inspect(snapshot: &VerifiedSnapshot, profile: &ExecutionProfile) -> Result<()> {
+    /// let plan = DirectEngine::memory_plan_with_prefix_cache(snapshot, profile, &PrefixCacheConfig::new(512 * 1024 * 1024)?)?;
+    /// assert!(plan.host_bytes > 0);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn memory_plan_with_prefix_cache(
+        snapshot: &VerifiedSnapshot,
+        profile: &ExecutionProfile,
+        cache: &PrefixCacheConfig,
+    ) -> Result<MemoryPlan> {
+        let mut plan = Self::memory_plan(snapshot, profile)?;
+        let reserve = cache.reservation()?;
+        plan.host_bytes = plan
+            .host_bytes
+            .checked_add(reserve)
+            .ok_or(Error::InsufficientMemory)?;
+        plan.device_bytes = plan
+            .device_bytes
+            .checked_add(reserve)
+            .ok_or(Error::InsufficientMemory)?;
+        Ok(plan)
+    }
     /// Blocking offline load. May take minutes; the caller owns cancellation of its thread.
     ///
     /// # Errors
     /// Returns integrity, architecture, memory or tensor errors; never falls back.
     pub fn load(snapshot: VerifiedSnapshot, profile: ExecutionProfile) -> Result<Self> {
+        Self::load_with_prefix_cache(snapshot, profile, PrefixCacheConfig::default())
+    }
+    /// Load with bounded exact text-prefix reuse, accounting for cache staging before allocation.
+    ///
+    /// # Errors
+    /// Returns the errors from [`Self::load`] or invalid cache/admission budgets.
+    ///
+    /// ```no_run
+    /// # use clef_rs_core::{Result, DirectEngine, ExecutionProfile, artifacts::VerifiedSnapshot};
+    /// # use clef_rs_core::runtime::PrefixCacheConfig;
+    /// # fn load(snapshot: VerifiedSnapshot, profile: ExecutionProfile) -> Result<DirectEngine> {
+    /// DirectEngine::load_with_prefix_cache(snapshot, profile, PrefixCacheConfig::new(512 * 1024 * 1024)?)
+    /// # }
+    /// ```
+    pub fn load_with_prefix_cache(
+        snapshot: VerifiedSnapshot,
+        profile: ExecutionProfile,
+        cache: PrefixCacheConfig,
+    ) -> Result<Self> {
         profile.validate()?;
-        let plan = Self::memory_plan(&snapshot, &profile)?;
+        let plan = Self::memory_plan_with_prefix_cache(&snapshot, &profile, &cache)?;
         if plan.host_bytes > profile.host_budget_bytes
             || plan.device_bytes > profile.device_budget_bytes
         {
@@ -395,9 +448,12 @@ impl DirectEngine {
         };
         weights.finish()?;
         device.synchronize()?;
+        let mut prefix_cache = PrefixCache::default();
+        prefix_cache.configure(cache);
         Ok(Self {
             snapshot,
             profile,
+            prefix_cache,
             encoder,
             backbone,
             head,
@@ -411,13 +467,81 @@ impl DirectEngine {
     pub fn set_truncation(&mut self, policy: Truncation) {
         self.truncation = policy;
     }
-    /// Blocking one-pass inference; no state is retained between decisions.
+    /// Inspect aggregate prefix reuse without revealing request data.
+    ///
+    /// ```no_run
+    /// # use clef_rs_core::DirectEngine;
+    /// # fn inspect(engine: &DirectEngine) {
+    /// assert!(engine.prefix_cache_stats().entries <= 16);
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn prefix_cache_stats(&self) -> PrefixCacheStats {
+        self.prefix_cache.stats()
+    }
+    /// Erase retained text-prefix states and reset their statistics.
+    ///
+    /// ```no_run
+    /// # use clef_rs_core::DirectEngine;
+    /// # fn clear(engine: &mut DirectEngine) {
+    /// engine.clear_prefix_cache();
+    /// assert_eq!(engine.prefix_cache_stats().entries, 0);
+    /// # }
+    /// ```
+    pub fn clear_prefix_cache(&mut self) {
+        self.prefix_cache.clear();
+    }
+    /// Blocking one-pass inference in the embedded principal scope.
     ///
     /// # Errors
     /// Returns validation, deadline or inference errors. Kernel interruption is cooperative.
     pub fn decide(&mut self, request: &DecisionRequest) -> Result<DecisionResult> {
         let (encoded, control) = self.prepare_record(request)?;
-        self.execute(request, &encoded, &control)
+        self.execute(request, &encoded, &control, "embedded")
+    }
+    /// Infer within an explicit principal scope and bounded deadline.
+    /// Cached text is shared only with the same principal on this engine.
+    ///
+    /// # Errors
+    /// Returns preparation, deadline, or inference errors.
+    ///
+    /// ```no_run
+    /// # use std::time::Duration;
+    /// # use clef_rs_core::{Result, DirectEngine, DecisionRequest};
+    /// # use clef_rs_core::runtime::DecisionOptions;
+    /// # fn run(engine: &mut DirectEngine, request: &DecisionRequest) -> Result<()> {
+    /// engine.decide_with_options(request, &DecisionOptions::new("tenant-a".into(), Duration::from_secs(60))?)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn decide_with_options(
+        &mut self,
+        request: &DecisionRequest,
+        options: &DecisionOptions,
+    ) -> Result<DecisionResult> {
+        let started = Instant::now();
+        let (encoded, mut control) = self.prepare_record(request)?;
+        control.deadline = started + options.timeout;
+        self.execute(request, &encoded, &control, &options.principal)
+    }
+    /// Perform a complete prefill without reading or updating the prefix cache.
+    /// Useful for cold-request measurements and independent parity comparisons.
+    ///
+    /// # Errors
+    /// Returns the same errors as [`Self::decide`].
+    ///
+    /// ```no_run
+    /// # use clef_rs_core::{Result, DirectEngine, DecisionRequest};
+    /// # fn compare(engine: &mut DirectEngine, request: &DecisionRequest) -> Result<()> {
+    /// let complete = engine.decide_uncached(request)?;
+    /// let reused = engine.decide(request)?;
+    /// assert_eq!(complete.input_tokens, reused.input_tokens);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn decide_uncached(&mut self, request: &DecisionRequest) -> Result<DecisionResult> {
+        let (encoded, control) = self.prepare_record(request)?;
+        self.execute_measured(request, &encoded, &control, "embedded", false, None)
     }
     /// Measure preparation, backbone, head, conversion and synchronization separately.
     /// Diagnostic barriers are included in the reported stages.
@@ -444,7 +568,14 @@ impl DirectEngine {
             encoding_ms: start.elapsed().as_secs_f64() * 1000.,
             ..ExecutionTimings::default()
         };
-        let result = self.execute_measured(request, &encoded, &control, Some(&mut timings))?;
+        let result = self.execute_measured(
+            request,
+            &encoded,
+            &control,
+            "embedded",
+            true,
+            Some(&mut timings),
+        )?;
         timings.total_ms = start.elapsed().as_secs_f64() * 1000.;
         Ok((result, timings))
     }
@@ -502,20 +633,56 @@ impl DirectEngine {
         request: &DecisionRequest,
         encoded: &EncodedRecord,
         control: &Control,
+        principal: &str,
     ) -> Result<DecisionResult> {
-        self.execute_measured(request, encoded, control, None)
+        self.execute_measured(request, encoded, control, principal, true, None)
     }
     fn execute_measured(
         &mut self,
         request: &DecisionRequest,
         encoded: &EncodedRecord,
         control: &Control,
+        principal: &str,
+        allow_reuse: bool,
         mut timings: Option<&mut ExecutionTimings>,
     ) -> Result<DecisionResult> {
+        let mut captured = None;
+        let mut reused = 0;
         let result = (|| {
             control.check()?;
             let started = Instant::now();
-            let hidden = self.forward_hidden(encoded, control)?;
+            #[cfg(feature = "vision")]
+            let cacheable = encoded.images.is_empty();
+            #[cfg(not(feature = "vision"))]
+            let cacheable = true;
+            let reuse = if cacheable && allow_reuse {
+                self.prefix_cache
+                    .select(principal, &encoded.ids, encoded.state_end, |tokens| {
+                        self.backbone.prefix_bytes(tokens)
+                    })?
+            } else {
+                Reuse::Bypass
+            };
+            let hidden = match reuse {
+                Reuse::Bypass => self.forward_hidden(encoded, control)?,
+                Reuse::Capture(tokens) => {
+                    let (hidden, state) =
+                        self.backbone
+                            .prefill(&encoded.ids, control, None, Some(tokens))?;
+                    captured = state;
+                    hidden
+                }
+                Reuse::Hit(state) => {
+                    reused = state.hidden.dim(0)?;
+                    let suffix = encoded
+                        .ids
+                        .get(reused..)
+                        .ok_or_else(|| Error::InvalidRequest("prefix boundary".into()))?;
+                    self.backbone
+                        .prefill(suffix, control, Some(&state), None)?
+                        .0
+                }
+            };
             if let Some(timings) = timings.as_deref_mut() {
                 self.device.synchronize()?;
                 timings.backbone_ms = started.elapsed().as_secs_f64() * 1000.;
@@ -548,6 +715,15 @@ impl DirectEngine {
         self.device.synchronize()?;
         if let Some(timings) = timings {
             timings.synchronization_ms = started.elapsed().as_secs_f64() * 1000.;
+        }
+        if result.is_ok() {
+            control.check()?;
+            if let Some(state) = captured {
+                self.prefix_cache.publish(principal, &encoded.ids, state)?;
+            }
+            if reused > 0 {
+                self.prefix_cache.record_hit(reused);
+            }
         }
         result
     }
@@ -635,6 +811,9 @@ pub struct RuntimeConfig {
     /// Planner reserve, at least 20 percent.
     #[builder(default = 20)]
     pub memory_reserve_percent: u64,
+    /// Optional bounded exact-prefix reuse; disabled by default.
+    #[builder(default)]
+    pub prefix_cache: PrefixCacheConfig,
     /// Explicit truncation policy.
     #[builder(default)]
     pub truncation: Truncation,
@@ -650,6 +829,7 @@ impl RuntimeConfig {
     /// # Errors
     /// Returns an error for unsupported batch/replica counts or excessive budgets.
     pub fn validate(&self) -> Result<()> {
+        self.prefix_cache.validate()?;
         if self.workers_per_model != 1
             || self.max_batch_size != 1
             || !(1..=256).contains(&self.ingress_capacity)
@@ -878,14 +1058,14 @@ impl Runtime {
         let (ready, readiness) = oneshot::channel();
         let state = Arc::new(AtomicU8::new(WorkerState::Loading as u8));
         let worker_state = state.clone();
-        let truncation = config.truncation;
+        let policies = (config.truncation, config.prefix_cache.clone());
         let worker = thread::Builder::new()
             .name("clef-device-worker".into())
             .spawn(move || {
                 worker_loop(
                     snapshot,
                     profile,
-                    truncation,
+                    policies,
                     worker_jobs,
                     events,
                     ready,
@@ -1005,14 +1185,16 @@ impl Drop for Runtime {
 fn worker_loop(
     snapshot: VerifiedSnapshot,
     profile: ExecutionProfile,
-    truncation: Truncation,
+    policies: (Truncation, PrefixCacheConfig),
     mut jobs: mpsc::Receiver<Job>,
     events: mpsc::Sender<bool>,
     ready: oneshot::Sender<Result<()>>,
     state: Arc<AtomicU8>,
 ) {
+    let (truncation, cache) = policies;
     let startup = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let mut engine = DirectEngine::load(snapshot.clone(), profile.clone())?;
+        let mut engine =
+            DirectEngine::load_with_prefix_cache(snapshot.clone(), profile.clone(), cache.clone())?;
         engine.set_truncation(truncation);
         engine.warmup()?;
         Ok::<_, Error>(engine)
@@ -1039,6 +1221,7 @@ fn worker_loop(
             request,
             record,
             control,
+            principal,
             reply,
             _ingress: ingress_reservation,
             _bytes: byte_reservation,
@@ -1046,7 +1229,7 @@ fn worker_loop(
             ..
         } = job;
         let execution = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            engine.execute(&request, &record, &control)
+            engine.execute(&request, &record, &control, &principal)
         }));
         drop((
             ingress_reservation,
@@ -1080,7 +1263,11 @@ fn worker_loop(
                 }
                 restarts.push_back(now);
                 thread::sleep(Duration::from_millis(250 * (1 << restarts.len())));
-                let mut engine = DirectEngine::load(snapshot.clone(), profile.clone())?;
+                let mut engine = DirectEngine::load_with_prefix_cache(
+                    snapshot.clone(),
+                    profile.clone(),
+                    cache.clone(),
+                )?;
                 engine.set_truncation(truncation);
                 engine.warmup()?;
                 Ok(engine)
@@ -1334,7 +1521,10 @@ mod tests {
 #[cfg(test)]
 mod release_tests {
     use super::*;
-    use crate::{artifacts::ArtifactStore, types::ModelPreset};
+    use crate::{
+        artifacts::ArtifactStore,
+        types::{Answer, ModelPreset},
+    };
     #[tokio::test]
     #[ignore = "requires pinned Flash weights; synchronized diagnostics, not normal latency"]
     async fn test_should_profile_flash_backbone_categories() -> Result<()> {
@@ -1420,15 +1610,7 @@ mod release_tests {
                     record["inputTokens"].as_u64()
                 );
                 for (id, answer) in &actual.answers {
-                    let probabilities = match answer {
-                        crate::types::Answer::Noul { noul } => {
-                            serde_json::json!({"true":noul.get(),"false":1.0-noul.get()})
-                        }
-                        crate::types::Answer::Choice { probabilities, .. }
-                        | crate::types::Answer::Score { probabilities, .. } => {
-                            serde_json::Value::Object(probabilities.clone())
-                        }
-                    };
+                    let probabilities = unrounded_probabilities(answer);
                     let expected = record["probabilities"][id]
                         .as_object()
                         .ok_or_else(|| Error::InvalidRequest("oracle probabilities".into()))?;
@@ -1461,6 +1643,148 @@ mod release_tests {
                 "Flash {} qualification: {count} probabilities, maximum={maximum}, mean={mean}",
                 engine.profile.name()
             );
+            Ok(())
+        })
+        .await
+        .map_err(|_| Error::WorkerUnavailable)?
+    }
+    fn unrounded_probabilities(answer: &Answer) -> serde_json::Map<String, serde_json::Value> {
+        match answer {
+            Answer::Noul { noul } => serde_json::Map::from_iter([
+                ("true".into(), serde_json::json!(noul.get())),
+                ("false".into(), serde_json::json!(1.0 - noul.get())),
+            ]),
+            Answer::Choice { probabilities, .. } | Answer::Score { probabilities, .. } => {
+                probabilities.clone()
+            }
+        }
+    }
+    fn assert_reuse_parity(expected: &DecisionResult, actual: &DecisionResult) -> Result<()> {
+        assert_eq!(expected.input_tokens, actual.input_tokens);
+        assert_eq!(
+            expected.truncated_state_tokens,
+            actual.truncated_state_tokens
+        );
+        assert_eq!(expected.revision, actual.revision);
+        assert_eq!(expected.manifest_digest, actual.manifest_digest);
+        assert_eq!(expected.execution_profile, actual.execution_profile);
+        let mut errors = Vec::new();
+        for ((id, expected), (actual_id, actual)) in expected.answers.iter().zip(&actual.answers) {
+            assert_eq!(id, actual_id);
+            let actual = unrounded_probabilities(actual);
+            for (key, value) in unrounded_probabilities(expected) {
+                errors.push(
+                    (value.as_f64().ok_or(Error::ArtifactMissing)?
+                        - actual
+                            .get(&key)
+                            .and_then(serde_json::Value::as_f64)
+                            .ok_or(Error::ArtifactMissing)?)
+                    .abs(),
+                );
+            }
+        }
+        let maximum = errors.iter().copied().fold(0.0_f64, f64::max);
+        let mean = errors.iter().sum::<f64>()
+            / f64::from(u32::try_from(errors.len()).map_err(|_| Error::ArtifactMissing)?);
+        assert!(
+            maximum <= 1e-3 && mean <= 1e-4,
+            "unrounded reuse drift maximum={maximum}, mean={mean}"
+        );
+        eprintln!(
+            "PREFIX PARITY {} tokens: {} probabilities maximum={maximum}, mean={mean}",
+            actual.input_tokens,
+            errors.len()
+        );
+        Ok(())
+    }
+    #[tokio::test]
+    #[ignore = "requires pinned Flash weights and a qualified CPU/Metal runner"]
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "bounded checked-in qualification fixture"
+    )]
+    async fn test_should_reuse_full_flash_prefix_across_scoped_schema_and_state_changes()
+    -> Result<()> {
+        let root = std::env::var_os("CLEF_RELEASE_CACHE").ok_or(Error::ArtifactMissing)?;
+        let store = ArtifactStore::new(root.into(), 85_899_345_920)?;
+        let snapshot = store.open(ModelPreset::ClefFlash).await?;
+        let profile = release_profile(Modality::Text)?;
+        let oracle: serde_json::Value = serde_json::from_slice(include_bytes!(
+            "../fixtures/release/flash-extended-f32.json"
+        ))?;
+        let long = oracle
+            .get("records")
+            .and_then(serde_json::Value::as_array)
+            .and_then(|r| r.first())
+            .and_then(|r| r.get("request"))
+            .ok_or(Error::ArtifactMissing)?
+            .clone();
+        task::spawn_blocking(move || {
+            let mut engine = DirectEngine::load_with_prefix_cache(
+                snapshot,
+                profile,
+                PrefixCacheConfig::new(512 * 1024 * 1024)?,
+            )?;
+            let alice = DecisionOptions::new("alice".into(), Duration::from_secs(300))?;
+            let bob = DecisionOptions::new("bob".into(), Duration::from_secs(300))?;
+            let original = DecisionRequest::from_json(&serde_json::to_vec(&long)?)?;
+            let expected = engine.decide_uncached(&original)?;
+            assert_reuse_parity(&expected, &engine.decide_with_options(&original, &alice)?)?;
+            assert_eq!(engine.prefix_cache_stats().captures, 1);
+            assert_reuse_parity(&expected, &engine.decide_with_options(&original, &alice)?)?;
+            assert_eq!(engine.prefix_cache_stats().hits, 1);
+            let mut changed = long.clone();
+            changed
+                .get_mut("questions")
+                .and_then(serde_json::Value::as_object_mut)
+                .ok_or(Error::ArtifactMissing)?
+                .remove("severity");
+            let changed = DecisionRequest::from_json(&serde_json::to_vec(&changed)?)?;
+            let expected = engine.decide_uncached(&changed)?;
+            assert_reuse_parity(&expected, &engine.decide_with_options(&changed, &alice)?)?;
+            assert_eq!(engine.prefix_cache_stats().hits, 2);
+            assert_reuse_parity(&expected, &engine.decide_with_options(&changed, &bob)?)?;
+            assert_eq!(engine.prefix_cache_stats().captures, 2);
+            assert_eq!(engine.prefix_cache_stats().hits, 2);
+            // A changed prefix is a miss even when the schema is identical.
+            let mut smaller = long.clone();
+            let text = smaller.get_mut("state").ok_or(Error::ArtifactMissing)?;
+            let prefix: String = text
+                .as_str()
+                .ok_or(Error::ArtifactMissing)?
+                .chars()
+                .take(6000)
+                .collect();
+            *text = serde_json::Value::String(prefix.clone());
+            let smaller_request = DecisionRequest::from_json(&serde_json::to_vec(&smaller)?)?;
+            engine.clear_prefix_cache();
+            engine.decide_with_options(&smaller_request, &alice)?;
+            let mut appended = smaller.clone();
+            *appended.get_mut("state").ok_or(Error::ArtifactMissing)? = serde_json::Value::String(
+                format!("{prefix} Checkout is restored for all customers."),
+            );
+            let appended = DecisionRequest::from_json(&serde_json::to_vec(&appended)?)?;
+            let expected = engine.decide_uncached(&appended)?;
+            assert_reuse_parity(&expected, &engine.decide_with_options(&appended, &alice)?)?;
+            assert_eq!(engine.prefix_cache_stats().hits, 1);
+            let mut changed = smaller;
+            let text = changed.get_mut("state").ok_or(Error::ArtifactMissing)?;
+            *text = serde_json::Value::String(format!("Different beginning. {prefix}"));
+            let changed = DecisionRequest::from_json(&serde_json::to_vec(&changed)?)?;
+            let expected = engine.decide_uncached(&changed)?;
+            assert_reuse_parity(&expected, &engine.decide_with_options(&changed, &alice)?)?;
+            assert_eq!(engine.prefix_cache_stats().captures, 2);
+            let retained = engine.prefix_cache_stats();
+            let (encoded, control) = engine.prepare_record(&changed)?;
+            control.cancel.store(true, Ordering::Release);
+            assert!(matches!(
+                engine.execute(&changed, &encoded, &control, "other"),
+                Err(Error::Cancelled)
+            ));
+            assert_eq!(engine.prefix_cache_stats().captures, retained.captures);
+            assert_eq!(engine.prefix_cache_stats().hits, retained.hits);
+            assert_reuse_parity(&expected, &engine.decide_with_options(&changed, &alice)?)?;
+            assert_eq!(engine.prefix_cache_stats().hits, 2);
             Ok(())
         })
         .await
@@ -1563,6 +1887,7 @@ mod scheduler_tests {
             ids: vec![0; 20],
             questions: Vec::new(),
             truncated: 0,
+            state_end: 0,
             #[cfg(feature = "vision")]
             images: Vec::new(),
             #[cfg(feature = "vision")]

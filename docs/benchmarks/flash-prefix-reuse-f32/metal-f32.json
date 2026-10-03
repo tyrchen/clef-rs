@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 1,
+  "revision": "17f0b0ad64efb65d273590632833508766b2aae6",
+  "manifestDigest": "835c9b759faa2f20eec67dfdbf12ea74fc9937c58623b07371db6149b06ef59d",
+  "profile": "metal:0:f32:text:4096",
+  "memoryPlan": {
+    "hostBytes": 66762004933,
+    "deviceBytes": 54791385906
+  },
+  "loadMs": 21754.506958,
+  "cases": [
+    {
+      "workload": {
+        "name": "short-139",
+        "tokens": 139,
+        "fields": 1,
+        "options": 2,
+        "samples": 5
+      },
+      "uncached": {
+        "count": 5,
+        "meanMs": 425.56182499999994,
+        "minMs": 424.94179199999996,
+        "p50Ms": 425.50275,
+        "p95Ms": 426.077208,
+        "p99Ms": 426.077208,
+        "maxMs": 426.077208,
+        "standardDeviationMs": 0.4544074816848812
+      },
+      "capture": {
+        "count": 5,
+        "meanMs": 426.37866640000004,
+        "minMs": 425.160708,
+        "p50Ms": 426.475666,
+        "p95Ms": 428.006792,
+        "p99Ms": 428.006792,
+        "maxMs": 428.006792,
+        "standardDeviationMs": 0.9660903745711662
+      },
+      "hit": {
+        "count": 5,
+        "meanMs": 426.101325,
+        "minMs": 425.23575,
+        "p50Ms": 425.691125,
+        "p95Ms": 427.965917,
+        "p99Ms": 427.965917,
+        "maxMs": 427.965917,
+        "standardDeviationMs": 0.9775180833394298
+      },
+      "uncachedMs": [
+        425.50275,
+        426.07116699999995,
+        424.94179199999996,
+        426.077208,
+        425.216208
+      ],
+      "captureMs": [
+        425.681,
+        426.569166,
+        425.160708,
+        428.006792,
+        426.475666
+      ],
+      "hitMs": [
+        425.23575,
+        426.13108300000005,
+        425.691125,
+        427.965917,
+        425.48275
+      ],
+      "reusedTokens": 0,
+      "maximumProbabilityDrift": 0.0,
+      "meanProbabilityDrift": 0.0,
+      "stats": {
+        "hits": 0,
+        "captures": 0,
+        "reusedTokens": 0,
+        "entries": 0,
+        "bytes": 0
+      }
+    },
+    {
+      "workload": {
+        "name": "long-1024",
+        "tokens": 1024,
+        "fields": 3,
+        "options": 2,
+        "samples": 5
+      },
+      "uncached": {
+        "count": 5,
+        "meanMs": 2324.0030666,
+        "minMs": 2318.02925,
+        "p50Ms": 2324.891833,
+        "p95Ms": 2329.526542,
+        "p99Ms": 2329.526542,
+        "maxMs": 2329.526542,
+        "standardDeviationMs": 4.053725537434428
+      },
+      "capture": {
+        "count": 5,
+        "meanMs": 2334.686317,
+        "minMs": 2329.437375,
+        "p50Ms": 2335.349709,
+        "p95Ms": 2338.215792,
+        "p99Ms": 2338.215792,
+        "maxMs": 2338.215792,
+        "standardDeviationMs": 2.994873918775412
+      },
+      "hit": {
+        "count": 5,
+        "meanMs": 614.5272418000001,
+        "minMs": 613.37425,
+        "p50Ms": 614.205042,
+        "p95Ms": 615.892375,
+        "p99Ms": 615.892375,
+        "maxMs": 615.892375,
+        "standardDeviationMs": 0.9054061431277013
+      },
+      "uncachedMs": [
+        2318.02925,
+        2321.03775,
+        2324.891833,
+        2329.526542,
+        2326.529958
+      ],
+      "captureMs": [
+        2338.215792,
+        2333.828709,
+        2329.437375,
+        2336.6,
+        2335.349709
+      ],
+      "hitMs": [
+        613.37425,
+        615.213125,
+        613.951417,
+        615.892375,
+        614.205042
+      ],
+      "reusedTokens": 768,
+      "maximumProbabilityDrift": 0.0,
+      "meanProbabilityDrift": 0.0,
+      "stats": {
+        "hits": 1,
+        "captures": 1,
+        "reusedTokens": 768,
+        "entries": 1,
+        "bytes": 115609608
+      }
+    },
+    {
+      "workload": {
+        "name": "max-4096",
+        "tokens": 4096,
+        "fields": 3,
+        "options": 2,
+        "samples": 5
+      },
+      "uncached": {
+        "count": 5,
+        "meanMs": 9555.8570668,
+        "minMs": 9519.144333,
+        "p50Ms": 9538.143084,
+        "p95Ms": 9640.564042,
+        "p99Ms": 9640.564042,
+        "maxMs": 9640.564042,
+        "standardDeviationMs": 44.21464907214268
+      },
+      "capture": {
+        "count": 5,
+        "meanMs": 9623.3652252,
+        "minMs": 9579.922375,
+        "p50Ms": 9587.460709,
+        "p95Ms": 9687.691417,
+        "p99Ms": 9687.691417,
+        "maxMs": 9687.691417,
+        "standardDeviationMs": 49.93828095553487
+      },
+      "hit": {
+        "count": 5,
+        "meanMs": 711.0336914,
+        "minMs": 710.435166,
+        "p50Ms": 711.13375,
+        "p95Ms": 711.600125,
+        "p99Ms": 711.600125,
+        "maxMs": 711.600125,
+        "standardDeviationMs": 0.47638038552553835
+      },
+      "uncachedMs": [
+        9519.144333,
+        9538.143084,
+        9525.235541,
+        9556.198333999999,
+        9640.564042
+      ],
+      "captureMs": [
+        9579.922375,
+        9587.460709,
+        9580.665916999998,
+        9681.085707999999,
+        9687.691417
+      ],
+      "hitMs": [
+        710.528916,
+        711.600125,
+        711.4705,
+        711.13375,
+        710.435166
+      ],
+      "reusedTokens": 3840,
+      "maximumProbabilityDrift": 0.0,
+      "meanProbabilityDrift": 0.0,
+      "stats": {
+        "hits": 1,
+        "captures": 1,
+        "reusedTokens": 3840,
+        "entries": 1,
+        "bytes": 367280136
+      }
+    }
+  ],
+  "deviceMemory": {
+    "allocatedBytes": 36303224832,
+    "recommendedBytes": 55662788608,
+    "architecture": "applegpu_g17s"
+  },
+  "complete": true
+}

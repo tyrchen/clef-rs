@@ -209,7 +209,11 @@ async fn dispatch(command: Command) -> Result<()> {
             let store = ArtifactStore::new(settings.cache.root, settings.cache.max_bytes)?;
             for model in settings.models {
                 let snapshot = store.open(model.preset).await?;
-                output(&DirectEngine::memory_plan(&snapshot, &model.execution)?)?;
+                output(&DirectEngine::memory_plan_with_prefix_cache(
+                    &snapshot,
+                    &model.execution,
+                    &settings.runtime.prefix_cache,
+                )?)?;
             }
         }
         Command::Serve { config, offline } => serve(Settings::load(&config)?, offline).await?,

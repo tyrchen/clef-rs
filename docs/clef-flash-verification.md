@@ -2,6 +2,8 @@
 
 Verified on 2026-10-01/02 (latest follow-up 2026-10-03 UTC) against the actual pinned Flash weights. Supported v1 execution profiles are **CPU F32 and native macOS Metal F32/mixed F16, text or optional still images, up to 4,096 total tokens**. The library, CLI, and authenticated HTTP adapter use the same encoder, model graph, learned joint head, and answer conversion. The larger CLEF model, CUDA, video, and longer contexts are rejected explicitly.
 
+The latest [prefix-reuse qualification](clef-flash-prefix-reuse.md#qualification) verifies exact continuation, preparation fusion, updated text/PNG/JPEG oracle results and cache-enabled authenticated serving. The earlier numerical campaigns below remain reproducible baselines.
+
 ## Reference and environment
 
 | Item | Value |

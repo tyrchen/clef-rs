@@ -7,8 +7,8 @@
 //! Rust is used; Candle owns allocation, command lifetime and hazard tracking.
 
 use candle_core::{
-    CpuStorage, CustomOp1, CustomOp3, DType, Device, Error as CandleError, Layout, MetalStorage,
-    Result as CandleResult, Shape, Tensor, backend::BackendStorage,
+    CpuStorage, CustomOp1, CustomOp2, CustomOp3, DType, Device, Error as CandleError, Layout,
+    MetalStorage, Result as CandleResult, Shape, Tensor, backend::BackendStorage,
 };
 use candle_metal_kernels::{
     metal::{ComputePipeline, ConstantValues, Value},
@@ -16,12 +16,71 @@ use candle_metal_kernels::{
 };
 use objc2_metal::{MTLComputePipelineState, MTLDevice, MTLGPUFamily, MTLSize};
 
-use super::Control;
+use super::{Control, pointwise::DeltaPrepareKernel};
 use crate::{Error, Result};
+
+/// Retain exact-sized storage rather than an oversized best-fit scratch allocation.
+/// The pinned allocator may reuse a large free projection buffer for a tiny snapshot.
+/// Uploading bounded zero bytes obtains a fresh tracked buffer, then a safe device copy
+/// fills it without GPU readback. Residency and reclamation remain Candle-owned.
+pub(super) fn compact_copy(x: &Tensor) -> CandleResult<Tensor> {
+    x.apply_op1_no_bwd(&CompactCopy)
+}
+#[derive(Debug)]
+struct CompactCopy;
+impl CustomOp1 for CompactCopy {
+    fn name(&self) -> &'static str {
+        "clef-compact-prefix-copy"
+    }
+    fn cpu_fwd(&self, _: &CpuStorage, _: &Layout) -> CandleResult<(CpuStorage, Shape)> {
+        Err(CandleError::Msg(
+            "compact prefix copy requires Metal".into(),
+        ))
+    }
+    fn metal_fwd(
+        &self,
+        input: &MetalStorage,
+        layout: &Layout,
+    ) -> CandleResult<(MetalStorage, Shape)> {
+        let count = layout.shape().elem_count();
+        if !matches!(input.dtype(), DType::F32 | DType::F16) || !(1..=16_777_216).contains(&count) {
+            return Err(CandleError::Msg(
+                "compact prefix copy dimensions or dtype".into(),
+            ));
+        }
+        let scalar = input.dtype().size_in_bytes();
+        let last = layout.dims().iter().zip(layout.stride()).try_fold(
+            layout.start_offset(),
+            |offset, (dim, stride)| {
+                dim.checked_sub(1)
+                    .and_then(|n| n.checked_mul(*stride))
+                    .and_then(|n| offset.checked_add(n))
+                    .ok_or_else(|| CandleError::Msg("compact prefix source offset overflow".into()))
+            },
+        )?;
+        let end = last
+            .checked_add(1)
+            .and_then(|n| n.checked_mul(scalar))
+            .ok_or_else(|| CandleError::Msg("compact prefix source byte overflow".into()))?;
+        if end > input.buffer().length() {
+            return Err(CandleError::Msg("compact prefix source bounds".into()));
+        }
+        let bytes = count
+            .checked_mul(scalar)
+            .ok_or_else(|| CandleError::Msg("compact prefix byte overflow".into()))?;
+        let device = input.device();
+        let buffer = device.new_buffer_with_data(&vec![0u8; bytes])?;
+        let mut output = MetalStorage::new(buffer, device.clone(), count, input.dtype());
+        input.copy_strided_src(&mut output, 0, layout)?;
+        Ok((output, layout.shape().clone()))
+    }
+}
 
 #[derive(Debug, Clone)]
 pub(super) struct DeltaKernel {
     pipeline: ComputePipeline,
+    cached_pipeline: ComputePipeline,
+    preparation: Option<DeltaPrepareKernel>,
     key_dim: usize,
     value_dim: usize,
     values: usize,
@@ -56,24 +115,29 @@ impl DeltaKernel {
             return Ok(None);
         };
         dimensions(1, 1, key_dim, value_dim)?;
-        let library = device
-            .device()
-            .new_library_with_source(
-                &format!(
-                    "#define CLEF_VALUES {values}\n{}",
-                    include_str!("delta.metal")
-                ),
-                None,
-            )
-            .map_err(|e| Error::InferenceFailed(format!("compile DeltaNet kernel: {e}")))?;
-        let constants = ConstantValues::new(vec![(0, Value::USize(key_dim))]);
-        let function = library
-            .get_function("clef_delta", Some(&constants))
-            .map_err(|e| Error::InferenceFailed(format!("load DeltaNet kernel: {e}")))?;
-        let pipeline = device
-            .device()
-            .new_compute_pipeline_state_with_function(&function)
-            .map_err(|e| Error::InferenceFailed(format!("create DeltaNet pipeline: {e}")))?;
+        let compile = |cached: bool| -> Result<ComputePipeline> {
+            let library = device
+                .device()
+                .new_library_with_source(
+                    &format!(
+                        "#define CLEF_VALUES {values}\n#define CLEF_CACHE {}\n{}",
+                        u8::from(cached),
+                        include_str!("delta.metal")
+                    ),
+                    None,
+                )
+                .map_err(|e| Error::InferenceFailed(format!("compile DeltaNet kernel: {e}")))?;
+            let constants = ConstantValues::new(vec![(0, Value::USize(key_dim))]);
+            let function = library
+                .get_function("clef_delta", Some(&constants))
+                .map_err(|e| Error::InferenceFailed(format!("load DeltaNet kernel: {e}")))?;
+            device
+                .device()
+                .new_compute_pipeline_state_with_function(&function)
+                .map_err(|e| Error::InferenceFailed(format!("create DeltaNet pipeline: {e}")))
+        };
+        let pipeline = compile(false)?;
+        let cached_pipeline = compile(true)?;
         if pipeline.max_total_threads_per_threadgroup() < 128
             || pipeline.as_ref().threadExecutionWidth() != 32
         {
@@ -83,6 +147,12 @@ impl DeltaKernel {
         }
         Ok(Some(Self {
             pipeline,
+            cached_pipeline,
+            preparation: if key_dim == 128 && value_dim == 128 {
+                DeltaPrepareKernel::new(&Device::Metal(device.clone()))?
+            } else {
+                None
+            },
             key_dim,
             value_dim,
             values,
@@ -115,6 +185,96 @@ impl DeltaKernel {
         let out = packed.apply_op1_no_bwd(self)?;
         control.check()?;
         Ok(out)
+    }
+    pub fn can_prepare(&self) -> bool {
+        self.preparation.is_some()
+    }
+    pub fn prepare(&self, mixed: &Tensor, g: &Tensor, beta: &Tensor) -> Result<Tensor> {
+        Ok(self
+            .preparation
+            .as_ref()
+            .ok_or_else(|| Error::UnsupportedCapability("DeltaNet preparation dimensions".into()))?
+            .forward(mixed, g, beta)?)
+    }
+    pub fn prepared_prefill(
+        &self,
+        packed: &Tensor,
+        control: &Control,
+        initial: Option<&Tensor>,
+        capture: Option<usize>,
+    ) -> Result<(Tensor, Option<Tensor>)> {
+        control.check()?;
+        let (tokens, heads, width) = packed.dims3()?;
+        dimensions(tokens, heads, self.key_dim, self.value_dim)?;
+        if width != 2 * self.key_dim + self.value_dim + 2
+            || capture.is_some_and(|n| n == 0 || n > tokens)
+            || initial.is_some_and(|state| state.dims() != [heads, self.key_dim, self.value_dim])
+        {
+            return Err(Error::InvalidRequest(
+                "prepared DeltaNet continuation shape".into(),
+            ));
+        }
+        if initial.is_none() && capture.is_none() {
+            return Ok((packed.apply_op1_no_bwd(self)?, None));
+        }
+        let operation = CachedDelta {
+            kernel: self.clone(),
+            capture: capture.unwrap_or_default(),
+            resume: initial.is_some(),
+        };
+        let output = packed.apply_op2_no_bwd(initial.unwrap_or(packed), &operation)?;
+        let count = tokens * heads * self.value_dim;
+        let saved = if capture.is_some() {
+            Some(compact_copy(
+                &output
+                    .narrow(0, count, heads * self.key_dim * self.value_dim)?
+                    .reshape((heads, self.key_dim, self.value_dim))?,
+            )?)
+        } else {
+            None
+        };
+        control.check()?;
+        Ok((
+            output
+                .narrow(0, 0, count)?
+                .reshape((tokens, heads, self.value_dim))?,
+            saved,
+        ))
+    }
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "tensor equation with explicit immutable resume and capture boundaries"
+    )]
+    pub fn prefill(
+        &self,
+        q: &Tensor,
+        k: &Tensor,
+        v: &Tensor,
+        g: &Tensor,
+        beta: &Tensor,
+        control: &Control,
+        initial: Option<&Tensor>,
+        capture: Option<usize>,
+    ) -> Result<(Tensor, Option<Tensor>)> {
+        control.check()?;
+        let (tokens, heads, width) = q.dims3()?;
+        dimensions(tokens, heads, self.key_dim, self.value_dim)?;
+        if width != self.key_dim
+            || k.dims() != q.dims()
+            || v.dims() != [tokens, heads, self.value_dim]
+            || g.dims() != [tokens, heads]
+            || beta.dims() != g.dims()
+            || capture.is_some_and(|n| n == 0 || n > tokens)
+            || initial.is_some_and(|state| state.dims() != [heads, width, self.value_dim])
+        {
+            return Err(Error::InvalidRequest(
+                "cached DeltaNet tensor shapes".into(),
+            ));
+        }
+        let decay = g.exp()?;
+        let packed =
+            Tensor::cat(&[q, k, v, &decay.unsqueeze(2)?, &beta.unsqueeze(2)?], 2)?.contiguous()?;
+        self.prepared_prefill(&packed, control, initial, capture)
     }
 }
 pub(super) fn dimensions(tokens: usize, heads: usize, key: usize, value: usize) -> Result<()> {
@@ -177,6 +337,81 @@ impl CustomOp1 for DeltaKernel {
     }
 }
 
+#[derive(Debug)]
+struct CachedDelta {
+    kernel: DeltaKernel,
+    capture: usize,
+    resume: bool,
+}
+impl CustomOp2 for CachedDelta {
+    fn name(&self) -> &'static str {
+        "clef-cached-delta"
+    }
+    fn cpu_fwd(
+        &self,
+        _: &CpuStorage,
+        _: &Layout,
+        _: &CpuStorage,
+        _: &Layout,
+    ) -> CandleResult<(CpuStorage, Shape)> {
+        Err(CandleError::Msg("cached DeltaNet requires Metal".into()))
+    }
+    fn metal_fwd(
+        &self,
+        input: &MetalStorage,
+        layout: &Layout,
+        initial: &MetalStorage,
+        initial_layout: &Layout,
+    ) -> CandleResult<(MetalStorage, Shape)> {
+        let (tokens, heads, width) = layout.shape().dims3()?;
+        let kernel = &self.kernel;
+        dimensions(tokens, heads, kernel.key_dim, kernel.value_dim).map_err(CandleError::wrap)?;
+        if width != 2 * kernel.key_dim + kernel.value_dim + 2
+            || self.capture > tokens
+            || (self.resume && initial_layout.dims() != [heads, kernel.key_dim, kernel.value_dim])
+        {
+            return Err(CandleError::Msg("cached DeltaNet dimensions".into()));
+        }
+        let offset = checked_f32_buffer(input, layout)?;
+        let initial_offset = checked_f32_buffer(initial, initial_layout)?;
+        let count = tokens * heads * kernel.value_dim
+            + if self.capture > 0 {
+                heads * kernel.key_dim * kernel.value_dim
+            } else {
+                0
+            };
+        let device = input.device();
+        let output = device.new_buffer(count, DType::F32, "clef_cached_delta")?;
+        let guard = device.command_encoder()?;
+        let encoder = guard.as_ref();
+        encoder.set_compute_pipeline_state(&kernel.cached_pipeline);
+        encoder.set_input_buffer(0, Some(input.buffer()), offset);
+        encoder.set_output_buffer(1, Some(&output), 0);
+        for (index, value) in [tokens, heads, kernel.value_dim].into_iter().enumerate() {
+            encoder.set_bytes(index + 2, &u32::try_from(value).map_err(CandleError::wrap)?);
+        }
+        encoder.set_input_buffer(5, Some(initial.buffer()), initial_offset);
+        encoder.set_bytes(6, &u32::try_from(self.capture).map_err(CandleError::wrap)?);
+        encoder.set_bytes(7, &self.resume);
+        encoder.dispatch_thread_groups(
+            MTLSize {
+                width: heads * kernel.value_dim.div_ceil(4 * kernel.values),
+                height: 1,
+                depth: 1,
+            },
+            MTLSize {
+                width: 128,
+                height: 1,
+                depth: 1,
+            },
+        );
+        Ok((
+            MetalStorage::new(output, device.clone(), count, DType::F32),
+            Shape::from(count),
+        ))
+    }
+}
+
 /// F32 Flash attention with a 16-query / 8-key tile (28,928 shared bytes).
 /// The upstream 32-query / 16-key tile needs 53,760 bytes at head width 256.
 #[derive(Debug, Clone)]
@@ -193,8 +428,14 @@ impl AttentionKernel {
         }
         // Reuse the dependency's exact algorithm and license; only instantiate
         // a smaller tile, avoiding a fork or a copied shader implementation.
+        // A partial last query tile must not scan past the final KV tile.
+        // The upstream causal bound rounds queries up to BQ, which can exceed keys.
+        let sdpa = SDPA.replace(
+            "kb_lim = (q_max + BK - 1) / BK;",
+            "kb_lim = min(params->NK, (q_max + BK - 1) / BK);",
+        );
         let source =
-            format!("{SDPA}\ninstantiate_attn(float32, float, 16, 8, 256, 2, 1, float32, float)\n");
+            format!("{sdpa}\ninstantiate_attn(float32, float, 16, 8, 256, 2, 1, float32, float)\n");
         let library = device
             .device()
             .new_library_with_source(&source, None)
@@ -314,7 +555,7 @@ impl CustomOp3 for AttentionKernel {
             || !(1..=heads).contains(&kv_heads)
             || heads % kv_heads != 0
             || !(1..=4096).contains(&tokens)
-            || tokens != keys
+            || !(tokens..=4096).contains(&keys)
             || width != 256
             || kw != width
             || vl.dims() != kl.dims()
@@ -329,16 +570,16 @@ impl CustomOp3 for AttentionKernel {
         let count = heads * tokens * width;
         let device = q.device();
         let output = device.new_buffer(count, DType::F32, "clef_flash_attention")?;
-        let variant = usize::from(tokens % 16 == 0) | (usize::from(tokens % 8 == 0) << 1);
+        let variant = usize::from(tokens % 16 == 0) | (usize::from(keys % 8 == 0) << 1);
         let pipeline = self
             .pipelines
             .get(variant)
             .ok_or_else(|| CandleError::Msg("attention tile variant".into()))?;
         let to_i32 = |value| i32::try_from(value).map_err(CandleError::wrap);
-        let strides = |n| -> CandleResult<[i64; 3]> {
+        let strides = |n, length| -> CandleResult<[i64; 3]> {
             Ok([
-                i64::try_from(n * tokens * width).map_err(CandleError::wrap)?,
-                i64::try_from(tokens * width).map_err(CandleError::wrap)?,
+                i64::try_from(n * length * width).map_err(CandleError::wrap)?,
+                i64::try_from(length * width).map_err(CandleError::wrap)?,
                 256,
             ])
         };
@@ -352,17 +593,17 @@ impl CustomOp3 for AttentionKernel {
             scale: 0.0625,
             softcap: 1.,
             query_tiles: to_i32(tokens.div_ceil(16))?,
-            key_tiles: to_i32(tokens.div_ceil(8))?,
+            key_tiles: to_i32(keys.div_ceil(8))?,
             aligned_query_tiles: to_i32(tokens / 16)?,
-            aligned_key_tiles: to_i32(tokens / 8)?,
+            aligned_key_tiles: to_i32(keys / 8)?,
             query_tail: to_i32(tokens % 16)?,
-            key_tail: to_i32(tokens % 8)?,
-            query_offset: 0,
+            key_tail: to_i32(keys % 8)?,
+            query_offset: to_i32(keys - tokens)?,
             padding: 0,
-            query_strides: strides(heads)?,
-            key_strides: strides(kv_heads)?,
-            value_strides: strides(kv_heads)?,
-            output_strides: strides(heads)?,
+            query_strides: strides(heads, tokens)?,
+            key_strides: strides(kv_heads, keys)?,
+            value_strides: strides(kv_heads, keys)?,
+            output_strides: strides(heads, tokens)?,
         };
         let guard = device.command_encoder()?;
         let encoder = guard.as_ref();
@@ -573,6 +814,133 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    #[ignore = "requires a real Apple Metal device"]
+    fn test_should_resume_f32_delta_bit_exactly_at_capture_boundary() -> Result<()> {
+        let device = Device::new_metal(0)?;
+        let control = Control {
+            cancel: Arc::new(AtomicBool::new(false)),
+            deadline: Instant::now() + Duration::from_secs(60),
+        };
+        for (key, value, values) in [(4, 5, 1), (128, 128, 4), (128, 13, 2), (128, 13, 8)] {
+            let kernel = DeltaKernel::new_variant(&device, key, value, values)?
+                .ok_or(Error::ArtifactMissing)?;
+            let q = Tensor::full(0.01f32, (257, 2, key), &device)?;
+            let k = Tensor::full(0.088f32, (257, 2, key), &device)?;
+            let v = Tensor::full(0.25f32, (257, 2, value), &device)?;
+            let g = Tensor::full(-0.03f32, (257, 2), &device)?;
+            let beta = Tensor::full(0.65f32, (257, 2), &device)?;
+            let expected = kernel.forward(&q, &k, &v, &g, &beta, &control)?;
+            for boundary in [1, 16, 256] {
+                let (captured, state) =
+                    kernel.prefill(&q, &k, &v, &g, &beta, &control, None, Some(boundary))?;
+                let error = (&captured - &expected)?
+                    .abs()?
+                    .flatten_all()?
+                    .max(0)?
+                    .to_scalar::<f32>()?;
+                assert_eq!(error, 0.);
+                let state = state.ok_or(Error::ArtifactMissing)?;
+                let tail = |tensor: &Tensor| -> Result<Tensor> {
+                    Ok(tensor.narrow(0, boundary, 257 - boundary)?.contiguous()?)
+                };
+                let actual = kernel
+                    .prefill(
+                        &tail(&q)?,
+                        &tail(&k)?,
+                        &tail(&v)?,
+                        &tail(&g)?,
+                        &tail(&beta)?,
+                        &control,
+                        Some(&state),
+                        None,
+                    )?
+                    .0;
+                let error = (actual - expected.narrow(0, boundary, 257 - boundary)?)?
+                    .abs()?
+                    .flatten_all()?
+                    .max(0)?
+                    .to_scalar::<f32>()?;
+                assert_eq!(error, 0.);
+            }
+        }
+        Ok(())
+    }
+    #[test]
+    #[ignore = "requires a real Apple Metal device"]
+    #[allow(
+        clippy::cast_precision_loss,
+        reason = "bounded deterministic test indices"
+    )]
+    fn test_should_apply_lower_right_causal_mask_with_cached_kv_and_tails() -> Result<()> {
+        let device = Device::new_metal(0)?;
+        let kernel = AttentionKernel::new(&device, 256)?.ok_or(Error::ArtifactMissing)?;
+        let control = Control {
+            cancel: Arc::new(AtomicBool::new(false)),
+            deadline: Instant::now() + Duration::from_secs(60),
+        };
+        for (tokens, prefix) in [(1, 256), (8, 256), (16, 256), (17, 256), (257, 256)] {
+            let q = Tensor::from_vec(
+                (0..2 * tokens * 256)
+                    .map(|i| (i as f32 * 0.017).sin())
+                    .collect(),
+                (2, tokens, 256),
+                &Device::Cpu,
+            )?;
+            let k = Tensor::from_vec(
+                (0..(tokens + prefix) * 256)
+                    .map(|i| (i as f32 * 0.031).cos())
+                    .collect(),
+                (1, tokens + prefix, 256),
+                &Device::Cpu,
+            )?;
+            let expected = crate::models::ops::attention(&q, &k, &k, true, &control)?;
+            let actual = kernel.forward(
+                &q.to_device(&device)?,
+                &k.to_device(&device)?,
+                &k.to_device(&device)?,
+                &control,
+            )?;
+            let error = (actual.to_device(&Device::Cpu)? - expected)?
+                .abs()?
+                .flatten_all()?
+                .max(0)?
+                .to_scalar::<f32>()?;
+            assert!(
+                error < 1e-5,
+                "cached Flash attention {tokens}/{prefix}: {error}"
+            );
+        }
+        Ok(())
+    }
+    #[test]
+    #[ignore = "requires Metal; validates physical buffer lengths and strided snapshots"]
+    fn test_should_retain_exact_sized_prefix_buffers_without_large_pool_reuse() -> Result<()> {
+        use candle_core::Storage;
+        let device = Device::new_metal(0)?;
+        for dtype in [DType::F32, DType::F16] {
+            let source = Tensor::arange(0f32, 4096f32, &device)?
+                .reshape((4, 8, 128))?
+                .to_dtype(dtype)?;
+            let view = source.narrow(1, 1, 3)?;
+            let output = compact_copy(&view)?;
+            let bytes = output.elem_count() * dtype.size_in_bytes();
+            let (storage, layout) = output.storage_and_layout();
+            let Storage::Metal(storage) = &*storage else {
+                return Err(Error::ArtifactMissing);
+            };
+            assert_eq!(storage.buffer().length(), bytes);
+            assert_eq!(layout.start_offset(), 0);
+            assert!(layout.is_contiguous());
+            let drift = (output.to_dtype(DType::F32)? - view.to_dtype(DType::F32)?)?
+                .abs()?
+                .flatten_all()?
+                .max(0)?
+                .to_scalar::<f32>()?;
+            assert_eq!(drift.to_bits(), 0);
+        }
+        Ok(())
+    }
     #[test]
     fn test_should_reject_unsupported_dispatch_shapes_before_allocation() {
         for shape in [

@@ -72,6 +72,7 @@ pub struct EncodedRecord {
     pub(crate) ids: Vec<u32>,
     pub(crate) questions: Vec<EncodedQuestion>,
     pub(crate) truncated: usize,
+    pub(crate) state_end: usize,
     #[cfg(feature = "vision")]
     pub(crate) images: Vec<crate::media::PreparedImage>,
     #[cfg(feature = "vision")]
@@ -286,6 +287,7 @@ impl Encoder {
             ids,
             questions: raw_questions,
             truncated: original - allowed.min(original),
+            state_end: offset,
             #[cfg(feature = "vision")]
             images,
             #[cfg(feature = "vision")]

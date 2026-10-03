@@ -1,0 +1,95 @@
+{
+  "startedAt": "2026-10-03T06:33:49.010180+00:00",
+  "hardware": {
+    "system": "Darwin",
+    "release": "25.5.0",
+    "machine": "arm64",
+    "cpu": "Apple M5 Pro",
+    "ramBytes": 68719476736,
+    "cpuCores": 18,
+    "osVersion": "26.5.2",
+    "gpus": [
+      {
+        "model": "Apple M5 Pro",
+        "cores": "20",
+        "metal": "spdisplays_metal4"
+      }
+    ]
+  },
+  "profiles": [
+    "metal:f16"
+  ],
+  "threads": 8,
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "gitHead": "8ca0bc2f045dbf6280071571240e7261b1072dd0",
+  "dirty": true,
+  "workloadSha256": "4559d75c72c5309eea1fae2198cc341048f2d32b38963f93a6d212fb4ca3f193",
+  "sources": {
+    "crates/core/src/prefix_cache.rs": "dfd5cd14ff22d33819940475916cad84334cbb3b0ced03e18ae6aeaed3841795",
+    "tests/performance/metal_candidates.py": "03412dea78d2d9f7c616a892721f5c0bf13a4772f3b3f077f7ad7c6209cfe33d",
+    "tests/performance/prefix_reuse.py": "47e1945438f8986da2ebdc5dfa5fdd13945a103da84ce7b1b1a3731164953e6b",
+    ".cargo/config.toml": "67b0b481bf600cfb10e333d558bc7849325f18db01047be1e3d831ffcdab8ae5",
+    "Cargo.lock": "5ee7fb6e579a9bf193b216d72c40ef8b69f2fc7710f0942c4d2bea9b11fef659",
+    "Cargo.toml": "c283ba61c7ca80cfed21cff55c709d822840b0817cb37cd1edb6feafb00d33e1",
+    "Makefile": "74e5492a354d870f3d8bb054961c1df02ed7d217189ffe619709dc74c32a6097",
+    "_typos.toml": "79ca0ba07c665c94362bfe6241ce7ddc4f24723ae56c5fb2e632a96d0b244553",
+    "apps/server/Cargo.toml": "883f76c26cd4daf38e55e73a63315a7b7460490772d130a4bfe483744d15abac",
+    "apps/server/src/auth.rs": "bc2d5463277336e328bf2d82033913232a7af3320b9dd452bed046085b44fc16",
+    "apps/server/src/config.rs": "440c69a8fd28ede283a6bc750e91868d7e4f7f404f950c92b37f2319c8651628",
+    "apps/server/src/error.rs": "56ed01a35d2aa1c6ea7e9281e5e991c94ac4fbed50d84f75444bfb837c7ecc45",
+    "apps/server/src/listener.rs": "411308791395990fffa134c3310fb8cbf79f12beabdd444bcbfae7ff8234eed2",
+    "apps/server/src/main.rs": "ed2711463c5e93bd3a70dfca847bd0100fbc70708a1f388533f9157dfb260b4b",
+    "apps/server/src/routes.rs": "8f4234c9df46d0958d59c0747191dd0dabae2d2c0bc492adedcd73ae4577f64c",
+    "cliff.toml": "9e9296fae8477b05d2a4444faeeb5722cc854b3a64178af03a98bf66fa8b65bf",
+    "clippy.toml": "16d031d6b488d12cc3bf5d82819b24c4ebca807e57e3524899ab5353fa9df174",
+    "crates/core/Cargo.toml": "7ec632053ddb0509f95ee8e206801609bc41f5f94593e5a2cfa5004e8b2fff42",
+    "crates/core/benches/domain.rs": "43b47ab0eb8a8f84d82086d32338f5b86ae587fd477c45ffb9765c6e270de709",
+    "crates/core/examples/benchmark.rs": "14665c10101ad8319842594464db6aa4e1bee969f41f26153502d22c68b92b09",
+    "crates/core/examples/decision.rs": "8125baff421ad592ef23322879a5ab05101d56e9752cc2fc8dabc8414f3c56dc",
+    "crates/core/src/artifacts/hub.rs": "aff18226865a53e97bda81685aa2d55f430f248475b6abba0d9cc55ce4548524",
+    "crates/core/src/artifacts/mod.rs": "b2b14b3c393bbf5d3d12d6d46cd2d6c8f276bf71b980788e09ecacece7f8994b",
+    "crates/core/src/configuration.rs": "29bb26eb04807098a0f0dc5aebe1c4e29304b18f17d64b6ea1b40ff98facd3e4",
+    "crates/core/src/encoding.rs": "3e4d92af6dc5552aabb2cc65c5ab0546d75cd8ddbdcf502d831d51f06947dbec",
+    "crates/core/src/error.rs": "3bcecdb569bbfbb5363df80f2cfad97b00c137255e4ab01f181b649a1491b4fe",
+    "crates/core/src/lib.rs": "cf76c828235a7769543f8934f3b7983d5c91360947d90664d81693559459c949",
+    "crates/core/src/media.rs": "45b8a6b5a9fa684f77d81b28d55759b019c08d75ad29cd130085e4acc1b1c4ea",
+    "crates/core/src/models/chunk.metal": "0d535865857306a8eff152e2ca24edb3cd8fe6689aaed9d953b448c0ee9a4ab2",
+    "crates/core/src/models/chunk.rs": "8913f76af4201b3a2f4f3369652e8b203614b4c8c85744a2686b17381b9c1d42",
+    "crates/core/src/models/delta.metal": "b91e5c5a4b92e04e73952813cce2bc6a8e36d05161b2ab554f2683f5678e6845",
+    "crates/core/src/models/diagnostics.rs": "68f9b4b178528a872692cb4d06d810bc3e2b0434c010e7e347de7da773fc9c68",
+    "crates/core/src/models/head.rs": "74bf2dd3cf983a85ea5903ea55d0474b3ecdd3086c17baa57e8b7f6122a38b0d",
+    "crates/core/src/models/metal.rs": "5c0bad8c90a7cdf757887da1b734c390e55bfdcaec391122699ce5aeb782501d",
+    "crates/core/src/models/mod.rs": "df4b9acf9f29412f159ce9a6e3b9e2d0dbd0d0c44fcb4f7c030de1f80861af55",
+    "crates/core/src/models/neural.metal": "98e879f18cd91285bf0f40bcb396f3778f40984520de50488d4f23cea03ae4b6",
+    "crates/core/src/models/neural.rs": "c3cc450a2f53af2f4fa9bcc8f249fbfeeaae57c63c20ed3f967fe111103e93be",
+    "crates/core/src/models/normalization.rs": "717860f014ce5bec088a99db99fa10d6556b72e493b25fc16d80d067c070beda",
+    "crates/core/src/models/ops.rs": "4f4ef2ad83803de76ecc1ce89b7e20a7fe166a072330538ea4d98d1dcfdd3679",
+    "crates/core/src/models/pointwise.metal": "a4359cc516b53e2cc8c85d4ec3c33c1e24611ee5794da43c3b5755b6c55dcf94",
+    "crates/core/src/models/pointwise.rs": "f11dac5dd95ba92e15e87903a9cbbde281fe7a7f363f9968dbf135b682a296fa",
+    "crates/core/src/models/projection.rs": "4eab4082033004caccc88069f2460ac9e2874f8e7cf8f1ceb0507c79cd65544c",
+    "crates/core/src/models/qwen.rs": "65fccc2b32c5704931b03448ea8fe46f31973529ceeb494d8a113adde051db9a",
+    "crates/core/src/models/vision.rs": "e3ff2b52a6da31350e84ffe00d26a2485cfced169b7477051a6e432542d18c62",
+    "crates/core/src/models/weights.rs": "b6ae08221561cc5fbfb97c4e27c8809af9c8121fcf798b1d22d0467e210fbeaf",
+    "crates/core/src/runtime.rs": "ecf295d0d8ba1259ba315bc41c36273b5476bab745d10cf48dc993fb59bbc115",
+    "crates/core/src/types.rs": "fd08bc38c934f73f9f8dfbe34fbca171fa80d954bc8e949bd920272261f9c4c5",
+    "deny.toml": "7f27c92276eb4176bd928eb4b90d4f4681c5559e2cfaaf03bdc5dfc2c528a419",
+    "rust-toolchain.toml": "b2c19d86958ed6810741488db5cd352856f303c53bcf0ea774e72f94ee4d201e",
+    "rustfmt.toml": "72f85bcb2c44b9e3e916b640b4da9329fab310a04a5a1ae5b59550cc310d8bce",
+    "tests/performance/domain_report.py": "2cf401b28cfd83c4f3a6e6c527c496cc26e3005ebbae2e774e119740fac6ffe4",
+    "tests/performance/run.py": "76a766a7b3883126cb58892b7eb698afe2d75cfca0cb1458f7bb038eb3e9eb2a",
+    "tests/reference/generate.py": "ce4ffc757a2b9f7fc6051f6bd83707359add8d2d343b29a93f12c27decbc862f",
+    "tests/reference/qualify_flash.py": "0c60192a9cfcb1fa21d6a3f5cc22ae561793fce4aeecd09b37bcc1365c3956da",
+    "tests/reference/requirements.lock": "c4d9b02407e331267b10164213b2db3bf44b1a96ddacc0533450b7e36b6fe129",
+    "tests/reference/serve_smoke.py": "749957fd3cbb6c31f4fa200ba451b4d6d633ddca84b61538601fc9c62099d8fd"
+  },
+  "processes": {
+    "metal:f16-baseline": {
+      "elapsedSeconds": 151.41802300000563,
+      "binarySha256": "2c239aa584fe685c2cadfc2db280bdd4f9493378cd249318fb29e80e272aea40"
+    },
+    "metal:f16": {
+      "elapsedSeconds": 293.0545334999915,
+      "binarySha256": "803b8856c230b91a428d39e8c2c5524ffd4bb997dcc5e0c29fe0b0b8bed9a43b"
+    }
+  }
+}

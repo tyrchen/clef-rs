@@ -22,15 +22,15 @@ use std::{
 use anyhow::{Context, Result, bail};
 use clap::{Parser, ValueEnum};
 use clef_rs_core::{
-    DecisionRequest, DirectEngine, ExecutionProfile, Runtime, RuntimeConfig,
-    artifacts::ArtifactStore,
+    DecisionRequest, DecisionResult, DirectEngine, ExecutionProfile, Runtime, RuntimeConfig,
+    artifacts::{ArtifactStore, VerifiedSnapshot},
     configuration::validate_yaml,
     encoding::{Encoder, Truncation},
     runtime::{
         DecisionOptions, DeviceKind, DeviceMemory, ExecutionTimings, MemoryPlan, MemoryProbe,
-        Modality, Precision,
+        Modality, Precision, PrefixCacheConfig, PrefixCacheStats,
     },
-    types::{Identifier, ModelPreset},
+    types::{Answer, Identifier, ModelPreset},
 };
 use config::{Config, File as ConfigFile, FileFormat};
 use serde::{Deserialize, Serialize};
@@ -62,6 +62,9 @@ struct Args {
     /// Validate exact workload lengths without allocating model weights.
     #[arg(long)]
     prepare_only: bool,
+    /// Rotate full-prefill, capture/miss and hit samples; verify every decision.
+    #[arg(long)]
+    prefix_reuse: bool,
 }
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -443,17 +446,183 @@ fn save_prepared(
     serde_json::to_writer_pretty(File::create(path)?, &cases)?;
     Ok(())
 }
-fn main() -> Result<()> {
-    let executor = Builder::new_multi_thread().enable_all().build()?;
-    tracing_subscriber::fmt().with_writer(io::stderr).init();
-    let args = Args::parse();
-    let settings = load_settings(&args.config)?;
-    let profile = ExecutionProfile::builder()
-        .device(match args.device {
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ReuseCase {
+    workload: Case,
+    uncached: Summary,
+    capture: Summary,
+    hit: Summary,
+    uncached_ms: Vec<f64>,
+    capture_ms: Vec<f64>,
+    hit_ms: Vec<f64>,
+    reused_tokens: usize,
+    maximum_probability_drift: f64,
+    mean_probability_drift: f64,
+    stats: PrefixCacheStats,
+}
+fn probabilities(answer: &Answer) -> Result<BTreeMap<String, f64>> {
+    match answer {
+        Answer::Noul { noul } => Ok(BTreeMap::from([
+            ("true".into(), f64::from(noul.get())),
+            ("false".into(), 1.0 - f64::from(noul.get())),
+        ])),
+        Answer::Choice { probabilities, .. } | Answer::Score { probabilities, .. } => probabilities
+            .iter()
+            .map(|(key, value)| {
+                Ok((
+                    key.clone(),
+                    value.as_f64().context("invalid unrounded probability")?,
+                ))
+            })
+            .collect(),
+        _ => bail!("unsupported benchmark answer type"),
+    }
+}
+fn probability_drift(reference: &DecisionResult, actual: &DecisionResult) -> Result<Vec<f64>> {
+    if reference.input_tokens != actual.input_tokens
+        || reference.truncated_state_tokens != actual.truncated_state_tokens
+        || reference.revision != actual.revision
+        || reference.manifest_digest != actual.manifest_digest
+        || reference.execution_profile != actual.execution_profile
+        || reference.answers.len() != actual.answers.len()
+    {
+        bail!("prefix reuse result provenance invariant");
+    }
+    let mut errors = Vec::new();
+    for ((id, reference), (actual_id, actual)) in reference.answers.iter().zip(&actual.answers) {
+        if id != actual_id {
+            bail!("prefix reuse field identity");
+        }
+        let reference = probabilities(reference)?;
+        let actual = probabilities(actual)?;
+        if reference.len() != actual.len() {
+            bail!("prefix reuse distribution length");
+        }
+        for (option, expected) in reference {
+            errors.push(
+                (expected - actual.get(&option).context("missing reused probability")?).abs(),
+            );
+        }
+    }
+    Ok(errors)
+}
+#[allow(
+    clippy::cast_precision_loss,
+    reason = "bounded benchmark counts are exactly representable"
+)]
+fn measure_reuse(
+    engine: &mut DirectEngine,
+    case: &Case,
+    input: &DecisionRequest,
+    warmups: usize,
+) -> Result<ReuseCase> {
+    engine.clear_prefix_cache();
+    let expected = engine.decide_uncached(input)?;
+    for _ in 0..warmups {
+        engine.clear_prefix_cache();
+        engine.decide(input)?;
+        engine.decide(input)?;
+    }
+    let mut samples = [Vec::new(), Vec::new(), Vec::new()];
+    let mut errors = Vec::new();
+    let mut reused_tokens = 0;
+    let mut hit_stats = PrefixCacheStats::default();
+    for iteration in 0..case.samples {
+        // Rotate mode order to avoid systematically assigning thermal drift to a mode.
+        for mode in (0..3).map(|n| (n + iteration) % 3) {
+            engine.clear_prefix_cache();
+            if mode == 2 {
+                engine.decide(input)?;
+            }
+            let started = Instant::now();
+            let actual = if mode == 0 {
+                engine.decide_uncached(input)?
+            } else {
+                engine.decide(input)?
+            };
+            samples
+                .get_mut(mode)
+                .context("benchmark mode")?
+                .push(started.elapsed().as_secs_f64() * 1000.);
+            errors.extend(probability_drift(&expected, &actual)?);
+            let stats = engine.prefix_cache_stats();
+            if mode == 2 {
+                reused_tokens = usize::try_from(stats.reused_tokens)?;
+                hit_stats = stats;
+                if (case.tokens >= 1024 && stats.hits != 1) || stats.hits > 1 {
+                    bail!("prefix reuse workload did not hit exactly once");
+                }
+            }
+        }
+        tracing::info!(
+            case = case.name,
+            sample = iteration + 1,
+            "rotated prefix reuse modes measured"
+        );
+    }
+    let maximum = errors.iter().copied().fold(0.0_f64, f64::max);
+    let mean = errors.iter().sum::<f64>() / errors.len().max(1) as f64;
+    if maximum > 1e-3 || mean > 1e-4 {
+        bail!("reuse drift maximum={maximum}, mean={mean}");
+    }
+    let [uncached_ms, capture_ms, hit_ms] = samples;
+    Ok(ReuseCase {
+        workload: case.clone(),
+        uncached: summarize(&uncached_ms),
+        capture: summarize(&capture_ms),
+        hit: summarize(&hit_ms),
+        uncached_ms,
+        capture_ms,
+        hit_ms,
+        reused_tokens,
+        maximum_probability_drift: maximum,
+        mean_probability_drift: mean,
+        stats: hit_stats,
+    })
+}
+#[allow(
+    clippy::too_many_arguments,
+    reason = "offline report provenance is explicit and immutable"
+)]
+fn save_reuse(
+    engine: &mut DirectEngine,
+    settings: &Settings,
+    inputs: &[DecisionRequest],
+    output: &Path,
+    snapshot: &VerifiedSnapshot,
+    profile: &ExecutionProfile,
+    plan: &MemoryPlan,
+    load_ms: f64,
+) -> Result<()> {
+    let mut cases = Vec::new();
+    let write = |cases: &[ReuseCase], complete: bool, engine: &DirectEngine| -> Result<()> {
+        serde_json::to_writer_pretty(
+            File::create(output)?,
+            &json!({"schemaVersion":1,"revision":ModelPreset::ClefFlash.revision(),
+            "manifestDigest":snapshot.digest(), "profile":profile.name(), "memoryPlan":plan, "loadMs":load_ms,
+            "cases":cases, "deviceMemory":engine.device_memory(), "complete":complete}),
+        )?;
+        Ok(())
+    };
+    for (case, input) in settings.cases.iter().zip(inputs) {
+        cases.push(measure_reuse(
+            engine,
+            case,
+            input,
+            settings.warmup_per_case,
+        )?);
+        write(&cases, false, engine)?;
+    }
+    write(&cases, true, engine)
+}
+fn benchmark_profile(device: Backend, dtype: Dtype) -> ExecutionProfile {
+    ExecutionProfile::builder()
+        .device(match device {
             Backend::Cpu => DeviceKind::Cpu,
             Backend::Metal => DeviceKind::Metal,
         })
-        .dtype(match args.dtype {
+        .dtype(match dtype {
             Dtype::F32 => Precision::F32,
             Dtype::F16 => Precision::F16,
         })
@@ -461,7 +630,44 @@ fn main() -> Result<()> {
         .max_context_tokens(4096)
         .device_budget_bytes(64 * 1024 * 1024 * 1024)
         .host_budget_bytes(64 * 1024 * 1024 * 1024)
-        .build();
+        .build()
+}
+#[allow(
+    clippy::too_many_arguments,
+    reason = "explicit offline benchmark provenance and independent lifecycle timings"
+)]
+fn initial_report(
+    profile: String,
+    manifest_digest: String,
+    plan: MemoryPlan,
+    verification_ms: f64,
+    load_ms: f64,
+    first_decision_ms: f64,
+) -> Report {
+    Report {
+        schema_version: 1,
+        revision: ModelPreset::ClefFlash.revision().into(),
+        manifest_digest,
+        profile,
+        pid: std::process::id(),
+        memory_plan: plan,
+        verification_ms,
+        load_ms,
+        first_decision_ms,
+        cases: Vec::new(),
+        managed_startup_ms: 0.,
+        concurrency: Vec::new(),
+        shutdown_ms: 0.,
+        complete: false,
+        gpu_sampled_peak_bytes: None,
+    }
+}
+fn main() -> Result<()> {
+    let executor = Builder::new_multi_thread().enable_all().build()?;
+    tracing_subscriber::fmt().with_writer(io::stderr).init();
+    let args = Args::parse();
+    let settings = load_settings(&args.config)?;
+    let profile = benchmark_profile(args.device, args.dtype);
     profile.validate()?;
     let started = Instant::now();
     let store = ArtifactStore::new(args.cache_dir, 85_899_345_920)?;
@@ -477,31 +683,42 @@ fn main() -> Result<()> {
         return save_prepared(&args.output, &settings, &inputs, &encoder);
     }
     let first = inputs.first().context("benchmark needs a workload")?;
-    let plan = DirectEngine::memory_plan(&snapshot, &profile)?;
+    let cache = PrefixCacheConfig::new(if args.prefix_reuse {
+        512 * 1024 * 1024
+    } else {
+        0
+    })?;
+    let plan = DirectEngine::memory_plan_with_prefix_cache(&snapshot, &profile, &cache)?;
     let started = Instant::now();
-    let mut engine = DirectEngine::load(snapshot.clone(), profile.clone())?;
+    let mut engine =
+        DirectEngine::load_with_prefix_cache(snapshot.clone(), profile.clone(), cache)?;
     let load_ms = started.elapsed().as_secs_f64() * 1000.;
+    if args.prefix_reuse {
+        save_reuse(
+            &mut engine,
+            &settings,
+            &inputs,
+            &args.output,
+            &snapshot,
+            &profile,
+            &plan,
+            load_ms,
+        )?;
+        executor.block_on(store.shutdown())?;
+        return Ok(());
+    }
     let monitor = MemoryMonitor::start(engine.memory_probe())?;
     let started = Instant::now();
     engine.decide(first)?;
     let first_decision_ms = started.elapsed().as_secs_f64() * 1000.;
-    let mut report = Report {
-        schema_version: 1,
-        revision: ModelPreset::ClefFlash.revision().into(),
-        manifest_digest: snapshot.digest().into(),
-        profile: profile.name(),
-        pid: std::process::id(),
-        memory_plan: plan,
+    let mut report = initial_report(
+        profile.name(),
+        snapshot.digest().into(),
+        plan,
         verification_ms,
         load_ms,
         first_decision_ms,
-        cases: Vec::new(),
-        managed_startup_ms: 0.,
-        concurrency: Vec::new(),
-        shutdown_ms: 0.,
-        complete: false,
-        gpu_sampled_peak_bytes: None,
-    };
+    );
     save(&args.output, &report)?;
     for (case, input) in settings.cases.iter().zip(&inputs) {
         tracing::info!(
@@ -547,11 +764,27 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use clef_rs_core::Error as CoreError;
+    use clef_rs_core::{Error as CoreError, types::Probability};
     use rstest::rstest;
     use tempfile::tempdir;
 
     use super::*;
+    #[test]
+    fn test_should_compare_unrounded_probabilities_below_serialization_precision() -> Result<()> {
+        let a = Answer::Noul {
+            noul: Probability::try_from(0.12344)?,
+        };
+        let b = Answer::Noul {
+            noul: Probability::try_from(0.12343)?,
+        };
+        let a = probabilities(&a)?;
+        let b = probabilities(&b)?;
+        let drift = (a.get("true").context("true probability")?
+            - b.get("true").context("true probability")?)
+        .abs();
+        assert!(drift > 9e-6 && drift < 11e-6);
+        Ok(())
+    }
     #[test]
     fn test_should_report_order_statistics_without_hiding_small_sample_count() {
         let result = summarize(&[3., 1., 2., 4.]);

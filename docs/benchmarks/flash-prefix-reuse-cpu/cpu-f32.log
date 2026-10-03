@@ -1,0 +1,4 @@
+2026-10-03T06:48:14.747159Z  INFO clef_rs_core::models::weights: All reviewed Flash weight tensors loaded
+2026-10-03T06:51:52.399443Z  INFO benchmark: rotated prefix reuse modes measured case="long-1024" sample=1
+2026-10-03T06:54:39.131577Z  INFO benchmark: rotated prefix reuse modes measured case="long-1024" sample=2
+2026-10-03T06:57:26.358583Z  INFO benchmark: rotated prefix reuse modes measured case="long-1024" sample=3

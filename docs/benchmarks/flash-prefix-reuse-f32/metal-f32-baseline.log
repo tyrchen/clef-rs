@@ -1,0 +1,21 @@
+2026-10-03T06:41:40.384999Z  INFO clef_rs_core::models::weights: All reviewed Flash weight tensors loaded
+2026-10-03T06:41:43.803707Z  INFO benchmark: benchmark workload started case="short-139" tokens=139
+2026-10-03T06:41:44.683534Z  INFO benchmark: normal inference measured case="short-139" sample=1 milliseconds=440.097917
+2026-10-03T06:41:45.123838Z  INFO benchmark: normal inference measured case="short-139" sample=2 milliseconds=440.277917
+2026-10-03T06:41:45.563986Z  INFO benchmark: normal inference measured case="short-139" sample=3 milliseconds=440.119417
+2026-10-03T06:41:46.003906Z  INFO benchmark: normal inference measured case="short-139" sample=4 milliseconds=439.89675
+2026-10-03T06:41:46.444646Z  INFO benchmark: normal inference measured case="short-139" sample=5 milliseconds=440.71925
+2026-10-03T06:41:46.887401Z  INFO benchmark: benchmark workload started case="long-1024" tokens=1024
+2026-10-03T06:41:51.780908Z  INFO benchmark: normal inference measured case="long-1024" sample=1 milliseconds=2445.172166
+2026-10-03T06:41:54.229472Z  INFO benchmark: normal inference measured case="long-1024" sample=2 milliseconds=2448.4380410000003
+2026-10-03T06:41:56.683805Z  INFO benchmark: normal inference measured case="long-1024" sample=3 milliseconds=2454.276792
+2026-10-03T06:41:59.136002Z  INFO benchmark: normal inference measured case="long-1024" sample=4 milliseconds=2452.141708
+2026-10-03T06:42:01.590946Z  INFO benchmark: normal inference measured case="long-1024" sample=5 milliseconds=2454.887083
+2026-10-03T06:42:04.048035Z  INFO benchmark: benchmark workload started case="max-4096" tokens=4096
+2026-10-03T06:42:24.285100Z  INFO benchmark: normal inference measured case="max-4096" sample=1 milliseconds=10117.892833000002
+2026-10-03T06:42:34.407132Z  INFO benchmark: normal inference measured case="max-4096" sample=2 milliseconds=10119.416666
+2026-10-03T06:42:44.517772Z  INFO benchmark: normal inference measured case="max-4096" sample=3 milliseconds=10110.423
+2026-10-03T06:42:54.630973Z  INFO benchmark: normal inference measured case="max-4096" sample=4 milliseconds=10110.762417
+2026-10-03T06:43:04.749004Z  INFO benchmark: normal inference measured case="max-4096" sample=5 milliseconds=10117.842416
+2026-10-03T06:43:34.765688Z  INFO clef_rs_core::models::weights: All reviewed Flash weight tensors loaded
+2026-10-03T06:43:38.176354Z  INFO start: clef_rs_core::runtime: Flash worker loaded and warmed; admission open

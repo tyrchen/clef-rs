@@ -1,0 +1,7 @@
+# Scoped CPU continuation campaign. The existing complete CPU/Metal matrix remains archived.
+schemaVersion: 1
+warmupPerCase: 0
+cases:
+  - { name: long-1024, tokens: 1024, fields: 3, options: 2, samples: 3 }
+concurrency: [1]
+requestsPerWorker: 1

@@ -82,7 +82,7 @@ pub(crate) fn attention(
         || v.dim(1)? != kn
         || qn == 0
         || kn == 0
-        || (causal && qn != kn)
+        || (causal && qn > kn)
     {
         return Err(Error::InvalidRequest("attention tensor shapes".into()));
     }
@@ -104,9 +104,10 @@ pub(crate) fn attention(
         let mut maximum = Tensor::full(f32::NEG_INFINITY, (heads, count, 1), q.device())?;
         let mut denominator = Tensor::zeros((heads, count, 1), DType::F32, q.device())?;
         let mut accumulator = Tensor::zeros((heads, count, vw), DType::F32, q.device())?;
+        let offset = if causal { kn - qn } else { 0 };
         for ks in (0..kn).step_by(256) {
             control.check()?;
-            if causal && ks >= qs + count {
+            if causal && ks >= offset + qs + count {
                 break;
             }
             let keys = (kn - ks).min(256);
@@ -117,7 +118,7 @@ pub(crate) fn attention(
                 let mask: Vec<f32> = (0..count)
                     .flat_map(|i| {
                         (0..keys).map(move |j| {
-                            if ks + j > qs + i {
+                            if ks + j > offset + qs + i {
                                 f32::NEG_INFINITY
                             } else {
                                 0.0

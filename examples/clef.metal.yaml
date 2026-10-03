@@ -18,6 +18,10 @@ models:
       deviceBudgetBytes: 68719476736
       hostBudgetBytes: 68719476736
 runtime:
+  prefixCache:
+    capacityBytes: 536870912
+    maxEntries: 1
+    ttlSeconds: 300
   workersPerModel: 1
   ingressCapacity: 8
   queueCapacity: 8

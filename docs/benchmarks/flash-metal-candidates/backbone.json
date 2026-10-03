@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "8ca0bc2f045dbf6280071571240e7261b1072dd0",
+  "implementationCommit": "874255d32e759a8a72fbf931e9366a97799beb50",
+  "purpose": "Test-only synchronized categories on synthetic ID 42 inputs; barriers alter scheduling, categories incomplete, not normal inference latency or cost percentages",
+  "timedCapturesPerLength": 1,
+  "rows": [
+    {
+      "tokens": 139,
+      "categories": {
+        "convolution": {
+          "calls": 24,
+          "exclusiveMs": 7.416791,
+          "inclusiveMs": 7.416791
+        },
+        "deltaNet": {
+          "calls": 24,
+          "exclusiveMs": 53.870213,
+          "inclusiveMs": 157.125876
+        },
+        "fullAttention": {
+          "calls": 8,
+          "exclusiveMs": 14.111582000000002,
+          "inclusiveMs": 38.181748999999996
+        },
+        "gemm": {
+          "calls": 248,
+          "exclusiveMs": 173.98182699999995,
+          "inclusiveMs": 173.98182699999995
+        },
+        "normalization": {
+          "calls": 105,
+          "exclusiveMs": 30.330913999999993,
+          "inclusiveMs": 30.330913999999993
+        },
+        "recurrence": {
+          "calls": 24,
+          "exclusiveMs": 28.38558299999999,
+          "inclusiveMs": 28.38558299999999
+        },
+        "sdpa": {
+          "calls": 8,
+          "exclusiveMs": 3.443541,
+          "inclusiveMs": 3.443541
+        }
+      }
+    },
+    {
+      "tokens": 256,
+      "categories": {
+        "convolution": {
+          "calls": 24,
+          "exclusiveMs": 7.851206000000001,
+          "inclusiveMs": 7.851206000000001
+        },
+        "deltaNet": {
+          "calls": 24,
+          "exclusiveMs": 64.26351,
+          "inclusiveMs": 186.35242000000002
+        },
+        "fullAttention": {
+          "calls": 8,
+          "exclusiveMs": 19.353786,
+          "inclusiveMs": 47.02679200000001
+        },
+        "gemm": {
+          "calls": 248,
+          "exclusiveMs": 194.41599300000004,
+          "inclusiveMs": 194.41599300000004
+        },
+        "normalization": {
+          "calls": 105,
+          "exclusiveMs": 32.904746,
+          "inclusiveMs": 32.904746
+        },
+        "recurrence": {
+          "calls": 24,
+          "exclusiveMs": 43.277044,
+          "inclusiveMs": 43.277044
+        },
+        "sdpa": {
+          "calls": 8,
+          "exclusiveMs": 4.967083000000001,
+          "inclusiveMs": 4.967083000000001
+        }
+      }
+    },
+    {
+      "tokens": 1024,
+      "categories": {
+        "convolution": {
+          "calls": 24,
+          "exclusiveMs": 22.253331000000003,
+          "inclusiveMs": 22.253331000000003
+        },
+        "deltaNet": {
+          "calls": 24,
+          "exclusiveMs": 184.77800799999997,
+          "inclusiveMs": 544.209709
+        },
+        "fullAttention": {
+          "calls": 8,
+          "exclusiveMs": 60.125043,
+          "inclusiveMs": 151.644583
+        },
+        "gemm": {
+          "calls": 216,
+          "exclusiveMs": 534.960707,
+          "inclusiveMs": 534.960707
+        },
+        "normalization": {
+          "calls": 105,
+          "exclusiveMs": 81.67340699999997,
+          "inclusiveMs": 81.67340699999997
+        },
+        "recurrence": {
+          "calls": 24,
+          "exclusiveMs": 166.03862500000002,
+          "inclusiveMs": 166.03862500000002
+        },
+        "sdpa": {
+          "calls": 8,
+          "exclusiveMs": 30.723792000000003,
+          "inclusiveMs": 30.723792000000003
+        }
+      }
+    },
+    {
+      "tokens": 4096,
+      "categories": {
+        "convolution": {
+          "calls": 24,
+          "exclusiveMs": 105.78808599999998,
+          "inclusiveMs": 105.78808599999998
+        },
+        "deltaNet": {
+          "calls": 24,
+          "exclusiveMs": 757.4227539999999,
+          "inclusiveMs": 2199.38954
+        },
+        "fullAttention": {
+          "calls": 8,
+          "exclusiveMs": 242.646166,
+          "inclusiveMs": 873.905624
+        },
+        "gemm": {
+          "calls": 216,
+          "exclusiveMs": 2072.1988280000005,
+          "inclusiveMs": 2072.1988280000005
+        },
+        "normalization": {
+          "calls": 105,
+          "exclusiveMs": 315.83808399999987,
+          "inclusiveMs": 315.83808399999987
+        },
+        "recurrence": {
+          "calls": 24,
+          "exclusiveMs": 721.656332,
+          "inclusiveMs": 721.656332
+        },
+        "sdpa": {
+          "calls": 8,
+          "exclusiveMs": 405.40470799999997,
+          "inclusiveMs": 405.40470799999997
+        }
+      }
+    }
+  ],
+  "excludedWarmupsPerLength": 1
+}

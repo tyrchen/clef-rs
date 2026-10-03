@@ -388,7 +388,7 @@ mod tests {
         use clef_rs_core::{
             Runtime, RuntimeConfig,
             artifacts::ArtifactStore,
-            runtime::{DeviceKind, ExecutionProfile, Modality, Precision},
+            runtime::{DeviceKind, ExecutionProfile, Modality, Precision, PrefixCacheConfig},
             types::{CommitRevision, ModelPreset},
         };
         use tokio::{
@@ -414,14 +414,16 @@ mod tests {
             .device(device)
             .dtype(dtype)
             .modality(Modality::Text)
-            .max_context_tokens(512)
+            .max_context_tokens(1024)
             .device_budget_bytes(64 * 1024 * 1024 * 1024)
             .host_budget_bytes(64 * 1024 * 1024 * 1024)
             .build();
         let runtime = Runtime::start(
             store.open(ModelPreset::ClefFlash).await?,
             profile.clone(),
-            RuntimeConfig::default(),
+            RuntimeConfig::builder()
+                .prefix_cache(PrefixCacheConfig::new(512 * 1024 * 1024)?)
+                .build(),
         )
         .await?;
         let client = runtime.client();
@@ -460,10 +462,15 @@ mod tests {
             ingress: Arc::new(Semaphore::new(8)),
             decision_timeout: Duration::from_secs(60),
         });
-        let bytes = br#"{"model":"clef-flash","state":"Checkout has failed for every customer.","questions":{"urgent":{"type":"noul"},"team":{"type":"choice","criteria":{"billing":"invoices","technical":"outages"}},"severity":{"type":"score","criteria":["minor","critical"]}}}"#;
+        let mut input: Value = serde_json::from_slice( br#"{"model":"clef-flash","state":"Checkout has failed for every customer.","questions":{"urgent":{"type":"noul"},"team":{"type":"choice","criteria":{"billing":"invoices","technical":"outages"}},"severity":{"type":"score","criteria":["minor","critical"]}}}"#)?;
+        *input
+            .get_mut("state")
+            .ok_or_else(|| anyhow::anyhow!("missing fixture state"))? =
+            Value::String("normal ".repeat(600));
+        let bytes = serde_json::to_vec(&input)?;
         let expected = client
             .decide(
-                DecisionRequest::from_json(bytes)?,
+                DecisionRequest::from_json(&bytes)?,
                 DecisionOptions::default(),
             )
             .await?
@@ -479,7 +486,7 @@ mod tests {
                         "authorization",
                         format!("Bearer {}", token(&key, &claims()?)?),
                     )
-                    .body(Body::from(bytes.as_slice()))?,
+                    .body(Body::from(bytes.clone()))?,
             )
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
@@ -520,7 +527,7 @@ mod tests {
         );
         let mut stream = TcpStream::connect(address).await?;
         stream.write_all(headers.as_bytes()).await?;
-        stream.write_all(bytes).await?;
+        stream.write_all(&bytes).await?;
         let mut received = Vec::new();
         timeout(
             Duration::from_secs(60),
@@ -541,7 +548,7 @@ mod tests {
         assert!(matches!(
             client
                 .decide(
-                    DecisionRequest::from_json(bytes)?,
+                    DecisionRequest::from_json(&bytes)?,
                     DecisionOptions::default()
                 )
                 .await,

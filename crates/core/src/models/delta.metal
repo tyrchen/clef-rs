@@ -21,6 +21,11 @@ kernel void clef_delta(
     constant uint& tokens [[buffer(2)]],
     constant uint& heads [[buffer(3)]],
     constant uint& value_dim [[buffer(4)]],
+#if CLEF_CACHE
+    device const float* initial [[buffer(5)]],
+    constant uint& capture [[buffer(6)]],
+    constant bool& resume [[buffer(7)]],
+#endif
     uint group [[threadgroup_position_in_grid]],
     uint lane [[thread_index_in_threadgroup]]) {
     const uint key_dim = uint(CLEF_KEY_DIM);
@@ -33,6 +38,27 @@ kernel void clef_delta(
     Values state[4 * CLEF_SECTIONS];
     #pragma clang loop unroll(full)
     for (uint i = 0; i < 4 * CLEF_SECTIONS; ++i) state[i] = Values(0);
+#if CLEF_CACHE
+    if (resume) {
+        for (uint section = 0; section < CLEF_SECTIONS; ++section) {
+            uint first = value + section * 4;
+            for (uint p = 0; p < parts; ++p) {
+                uint index = key_lane + p * 32;
+                float4 loaded = float4(0);
+                for (uint v = 0; v < CLEF_ACTIVE; ++v)
+                    if (index < key_dim && first + v < value_dim)
+                        loaded[v] = initial[(head * key_dim + index) * value_dim + first + v];
+#if CLEF_VALUES == 1
+                state[section * 4 + p] = loaded.x;
+#elif CLEF_VALUES == 2
+                state[section * 4 + p] = loaded.xy;
+#else
+                state[section * 4 + p] = loaded;
+#endif
+            }
+        }
+    }
+#endif
     for (uint t = 0; t < tokens; ++t) {
         uint base = (t * heads + head) * packed_width;
         float decay = input[base + 2 * key_dim + value_dim];
@@ -73,6 +99,21 @@ kernel void clef_delta(
                 state[section * 4 + p] += keys[p] * delta;
                 products[p] = state[section * 4 + p] * queries[p];
             }
+#if CLEF_CACHE
+            if (t + 1 == capture) {
+                for (uint p = 0; p < parts; ++p) {
+                    uint index = key_lane + p * 32;
+#if CLEF_VALUES == 2
+                    float4 saved = float4(state[section * 4 + p], 0.0f, 0.0f);
+#else
+                    float4 saved = float4(state[section * 4 + p]);
+#endif
+                    for (uint v = 0; v < CLEF_ACTIVE; ++v)
+                        if (index < key_dim && first + v < value_dim)
+                            output[tokens * heads * value_dim + (head * key_dim + index) * value_dim + first + v] = saved[v];
+                }
+            }
+#endif
             dot = (products[0] + products[2]) + (products[1] + products[3]);
 #if CLEF_VALUES == 2
             float4 result = float4(simd_sum(dot), 0.0f, 0.0f);

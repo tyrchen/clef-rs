@@ -1,4 +1,4 @@
-//! Qwen3.5 hybrid prefill graph; no decoding cache is retained.
+//! Qwen3.5 hybrid prefill with immutable, exact-prefix continuation states.
 #![allow(
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
@@ -7,6 +7,8 @@
     reason = "reviewed model dimensions are bounded; tensor equations retain reference \
               mathematical names"
 )]
+
+use std::fmt::{self, Debug, Formatter};
 
 use candle_core::{D, DType, Tensor};
 use candle_nn::{
@@ -24,7 +26,7 @@ use super::{
 };
 #[cfg(all(feature = "metal", target_os = "macos"))]
 use super::{
-    metal::{AttentionKernel, DeltaKernel},
+    metal::{AttentionKernel, DeltaKernel, compact_copy},
     pointwise::ConvKernel,
 };
 use crate::{Error, Result};
@@ -148,6 +150,45 @@ pub(crate) struct Backbone {
     layers: Vec<Layer>,
     config: TextConfig,
 }
+/// Immutable state at one exact text-token boundary. Tensors own compact storage.
+#[derive(Clone)]
+pub(crate) struct PrefixState {
+    pub hidden: Tensor,
+    layers: Vec<MixerState>,
+}
+#[derive(Debug, Clone)]
+enum MixerState {
+    Full { key: Tensor, value: Tensor },
+    Linear { recurrent: Tensor, history: Tensor },
+}
+impl Debug for PrefixState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PrefixState")
+            .field("hidden_shape", &self.hidden.dims())
+            .field("layers", &self.layers.len())
+            .finish_non_exhaustive()
+    }
+}
+impl PrefixState {
+    pub fn bytes(&self) -> Result<u64> {
+        let mut tensors = self
+            .layers
+            .iter()
+            .flat_map(|state| match state {
+                MixerState::Full { key, value } => [key, value],
+                MixerState::Linear { recurrent, history } => [recurrent, history],
+            })
+            .chain([&self.hidden]);
+        tensors.try_fold(0u64, |total, tensor| {
+            let bytes = tensor
+                .elem_count()
+                .checked_mul(tensor.dtype().size_in_bytes())
+                .and_then(|n| u64::try_from(n).ok())
+                .ok_or(Error::InsufficientMemory)?;
+            total.checked_add(bytes).ok_or(Error::InsufficientMemory)
+        })
+    }
+}
 impl Backbone {
     pub fn load(w: &mut Weights, c: TextConfig) -> Result<Self> {
         let h = c.hidden_size;
@@ -234,6 +275,39 @@ impl Backbone {
             config: c,
         })
     }
+    pub fn prefix_bytes(&self, tokens: usize) -> Result<u64> {
+        let c = &self.config;
+        let scalar = self.embeddings.dtype().size_in_bytes();
+        let mut elements = tokens
+            .checked_mul(c.hidden_size)
+            .and_then(|n| n.checked_mul(4))
+            .ok_or(Error::InsufficientMemory)?;
+        for layer in &self.layers {
+            let bytes = match layer.mixer {
+                Mixer::Full(_) => tokens
+                    .checked_mul(c.num_key_value_heads)
+                    .and_then(|n| n.checked_mul(c.head_dim))
+                    .and_then(|n| n.checked_mul(2 * scalar)),
+                Mixer::Linear(_) => c
+                    .linear_num_value_heads
+                    .checked_mul(c.linear_key_head_dim)
+                    .and_then(|n| n.checked_mul(c.linear_value_head_dim))
+                    .and_then(|n| {
+                        n.checked_add(
+                            (c.linear_conv_kernel_dim - 1)
+                                * (2 * c.linear_num_key_heads * c.linear_key_head_dim
+                                    + c.linear_num_value_heads * c.linear_value_head_dim),
+                        )
+                    })
+                    .and_then(|n| n.checked_mul(4)),
+            }
+            .ok_or(Error::InsufficientMemory)?;
+            elements = elements
+                .checked_add(bytes)
+                .ok_or(Error::InsufficientMemory)?;
+        }
+        u64::try_from(elements).map_err(|_| Error::InsufficientMemory)
+    }
     pub fn forward(&self, ids: &[u32], control: &Control) -> Result<Tensor> {
         control.check()?;
         if ids.iter().any(|id| *id as usize >= self.config.vocab_size) {
@@ -252,31 +326,78 @@ impl Backbone {
     }
     pub fn forward_embedded(
         &self,
-        mut hidden: Tensor,
+        hidden: Tensor,
         positions: &[[usize; 3]],
         control: &Control,
     ) -> Result<Tensor> {
-        // Preserve residual additions in F32 while the large projection weights
-        // and their matrix multiplications use the selected profile precision.
+        Ok(self
+            .prefill_embedded(hidden, positions, control, None, None)?
+            .0)
+    }
+    pub fn prefill(
+        &self,
+        ids: &[u32],
+        control: &Control,
+        initial: Option<&PrefixState>,
+        capture: Option<usize>,
+    ) -> Result<(Tensor, Option<PrefixState>)> {
+        control.check()?;
+        let offset = initial
+            .map(|state| state.hidden.dim(0))
+            .transpose()?
+            .unwrap_or_default();
+        if ids.is_empty()
+            || ids.len().checked_add(offset).is_none_or(|n| n > 4096)
+            || ids.iter().any(|id| *id as usize >= self.config.vocab_size)
+            || capture.is_some_and(|n| n == 0 || n >= ids.len())
+            || (initial.is_some() && capture.is_some())
+            || initial.is_some_and(|state| state.layers.len() != self.layers.len())
+        {
+            return Err(Error::InvalidRequest(
+                "prefill boundary or vocabulary".into(),
+            ));
+        }
+        let indices = Tensor::new(ids, self.embeddings.device())?;
+        let hidden = self.embeddings.index_select(&indices, 0)?;
+        let positions: Vec<_> = (offset..offset + ids.len()).map(|i| [i, i, i]).collect();
+        self.prefill_embedded(hidden, &positions, control, initial, capture)
+    }
+    fn prefill_embedded(
+        &self,
+        mut hidden: Tensor,
+        positions: &[[usize; 3]],
+        control: &Control,
+        initial: Option<&PrefixState>,
+        capture: Option<usize>,
+    ) -> Result<(Tensor, Option<PrefixState>)> {
         hidden = hidden.to_dtype(DType::F32)?;
-        for layer in &self.layers {
+        let mut states = Vec::with_capacity(if capture.is_some() {
+            self.layers.len()
+        } else {
+            0
+        });
+        for (index, layer) in self.layers.iter().enumerate() {
             control.check()?;
             let input = layer
                 .input_norm
                 .forward(&hidden)?
                 .to_dtype(layer.gate.weight().dtype())?;
-            let mixed = match &layer.mixer {
+            let state = initial.and_then(|state| state.layers.get(index));
+            let (mixed, saved) = match &layer.mixer {
                 Mixer::Full(a) => measured!(
                     "fullAttention",
                     input.device(),
-                    a.forward(&input, &self.config, positions, control)
+                    a.forward(&input, &self.config, positions, control, state, capture)
                 )?,
                 Mixer::Linear(a) => measured!(
                     "deltaNet",
                     input.device(),
-                    a.forward(&input, &self.config, control)
+                    a.forward(&input, &self.config, control, state, capture)
                 )?,
             };
+            if let Some(saved) = saved {
+                states.push(saved);
+            }
             hidden = (hidden + mixed.to_dtype(DType::F32)?)?;
             let norm = layer
                 .post_norm
@@ -287,7 +408,21 @@ impl Backbone {
                 .forward(&layer.gate.gated_forward(&norm, &layer.up)?)?;
             hidden = (hidden + ff.to_dtype(DType::F32)?)?;
         }
-        self.norm.forward(&hidden)
+        let hidden = self.norm.forward(&hidden)?;
+        let saved = if let Some(tokens) = capture {
+            Some(PrefixState {
+                hidden: retain(&hidden.narrow(0, 0, tokens)?)?,
+                layers: states,
+            })
+        } else {
+            None
+        };
+        let hidden = if let Some(initial) = initial {
+            Tensor::cat(&[&initial.hidden, &hidden], 0)?
+        } else {
+            hidden
+        };
+        Ok((hidden, saved))
     }
 }
 impl FullAttention {
@@ -319,7 +454,9 @@ impl FullAttention {
         c: &TextConfig,
         positions: &[[usize; 3]],
         control: &Control,
-    ) -> Result<Tensor> {
+        initial: Option<&MixerState>,
+        capture: Option<usize>,
+    ) -> Result<(Tensor, Option<MixerState>)> {
         let t = x.dim(0)?;
         let d = c.head_dim;
         let heads = c.num_attention_heads;
@@ -357,6 +494,21 @@ impl FullAttention {
             .reshape((t, c.num_key_value_heads, d))?
             .transpose(0, 1)?
             .contiguous()?;
+        let (k, v) = match initial {
+            Some(MixerState::Full { key, value }) => {
+                (Tensor::cat(&[key, &k], 1)?, Tensor::cat(&[value, &v], 1)?)
+            }
+            None => (k, v),
+            _ => return Err(Error::InferenceFailed("full-attention prefix state".into())),
+        };
+        let saved = if let Some(tokens) = capture {
+            Some(MixerState::Full {
+                key: retain(&k.narrow(1, 0, tokens)?)?,
+                value: retain(&v.narrow(1, 0, tokens)?)?,
+            })
+        } else {
+            None
+        };
         #[cfg(all(feature = "metal", target_os = "macos"))]
         let attended = match &self.kernel {
             Some(kernel) => measured!("sdpa", x.device(), kernel.forward(&q, &k, &v, control))?,
@@ -369,7 +521,7 @@ impl FullAttention {
             .transpose(0, 1)?
             .contiguous()?
             .reshape((t, heads * d))?;
-        Ok(self.out.forward(&(out * sigmoid(&gate)?)?)?)
+        Ok((self.out.forward(&(out * sigmoid(&gate)?)?)?, saved))
     }
 }
 impl Delta {
@@ -434,7 +586,14 @@ impl Delta {
             )?,
         })
     }
-    fn forward(&self, x: &Tensor, c: &TextConfig, control: &Control) -> Result<Tensor> {
+    fn forward(
+        &self,
+        x: &Tensor,
+        c: &TextConfig,
+        control: &Control,
+        initial: Option<&MixerState>,
+        capture: Option<usize>,
+    ) -> Result<(Tensor, Option<MixerState>)> {
         let t = x.dim(0)?;
         let heads = c.linear_num_value_heads;
         let kd = c.linear_key_head_dim;
@@ -442,35 +601,21 @@ impl Delta {
         let key = c.linear_num_key_heads * kd;
         let value = heads * vd;
         let projected = self.qkv.forward(x)?.to_dtype(DType::F32)?;
-        #[cfg(all(feature = "metal", target_os = "macos"))]
-        let convolved = measured!(
-            "convolution",
-            x.device(),
-            match &self.convolution {
-                Some(kernel) => Ok::<_, Error>(kernel.forward(&projected, &self.conv)?),
-                None => causal_convolution(&projected, &self.conv, c.linear_conv_kernel_dim),
-            }
-        )?;
-        #[cfg(not(all(feature = "metal", target_os = "macos")))]
-        let convolved = measured!(
-            "convolution",
-            x.device(),
-            causal_convolution(&projected, &self.conv, c.linear_conv_kernel_dim)
-        )?;
+        let (recurrent, history) = match initial {
+            Some(MixerState::Linear { recurrent, history }) => (Some(recurrent), Some(history)),
+            None => (None, None),
+            _ => return Err(Error::InferenceFailed("DeltaNet prefix state".into())),
+        };
+        let projected = if let Some(history) = history {
+            Tensor::cat(&[history, &projected], 0)?
+        } else {
+            projected
+        };
+        let history_tokens = history.map_or(0, Tensor::elem_count) / (2 * key + value);
+
+        let convolved = self.convolve(&projected, c.linear_conv_kernel_dim)?;
+        let convolved = convolved.narrow(0, history_tokens, t)?;
         let mixed = silu(&convolved)?;
-        let repeat: Vec<u32> = (0..heads)
-            .map(|i| (i / (heads / c.linear_num_key_heads)) as u32)
-            .collect();
-        let repeat = Tensor::new(repeat, x.device())?;
-        let q = mixed
-            .narrow(1, 0, key)?
-            .reshape((t, c.linear_num_key_heads, kd))?
-            .index_select(&repeat, 1)?;
-        let k = mixed
-            .narrow(1, key, key)?
-            .reshape((t, c.linear_num_key_heads, kd))?
-            .index_select(&repeat, 1)?;
-        let v = mixed.narrow(1, 2 * key, value)?.reshape((t, heads, vd))?;
         let a = self
             .a
             .forward(x)?
@@ -480,28 +625,142 @@ impl Delta {
         let softplus = (a.clamp(0., f64::INFINITY)? + ((a.abs()?.neg()?.exp()? + 1.)?.log()?))?;
         let g = softplus.broadcast_mul(&self.a_log.to_dtype(DType::F32)?.exp()?.neg()?)?;
         let beta = sigmoid(&self.b.forward(x)?.to_dtype(DType::F32)?)?;
-        let out = measured!(
-            "recurrence",
-            x.device(),
-            delta_recurrence(
-                &q,
-                &k,
-                &v,
+        #[cfg(all(feature = "metal", target_os = "macos"))]
+        let prepared = self
+            .kernel
+            .as_ref()
+            .filter(|kernel| kernel.can_prepare())
+            .map(|kernel| {
+                kernel
+                    .prepare(&mixed, &g, &beta)
+                    .map(|packed| (kernel, packed))
+            })
+            .transpose()?;
+        #[cfg(all(feature = "metal", target_os = "macos"))]
+        let (out, saved_recurrent) = if let Some((kernel, packed)) = prepared {
+            measured!(
+                "recurrence",
+                x.device(),
+                kernel.prepared_prefill(&packed, control, recurrent, capture)
+            )?
+        } else {
+            Self::recur_portable(
+                &mixed,
                 &g,
                 &beta,
+                c,
                 control,
+                recurrent,
+                capture,
                 #[cfg(all(feature = "metal", target_os = "macos"))]
                 self.kernel.as_ref(),
-            )
-        )?
-        .to_dtype(x.dtype())?;
+            )?
+        };
+        #[cfg(not(all(feature = "metal", target_os = "macos")))]
+        let (out, saved_recurrent) = Self::recur_portable(
+            &mixed,
+            &g,
+            &beta,
+            c,
+            control,
+            recurrent,
+            capture,
+            #[cfg(all(feature = "metal", target_os = "macos"))]
+            self.kernel.as_ref(),
+        )?;
+        let out = out.to_dtype(x.dtype())?;
         let z = self.z.forward(x)?.reshape((t, heads, vd))?;
         let gated = (self.norm.forward(&out)?.to_dtype(DType::F32)?
             * silu(&z.to_dtype(DType::F32)?)?)?
         .to_dtype(x.dtype())?
         .reshape((t, value))?;
-        Ok(self.out.forward(&gated)?)
+        let saved = if let (Some(tokens), Some(recurrent)) = (capture, saved_recurrent) {
+            let end = history_tokens + tokens;
+            let count = end.min(c.linear_conv_kernel_dim - 1);
+            Some(MixerState::Linear {
+                recurrent,
+                history: retain(&projected.narrow(0, end - count, count)?)?,
+            })
+        } else {
+            None
+        };
+        Ok((self.out.forward(&gated)?, saved))
     }
+    fn convolve(&self, projected: &Tensor, taps: usize) -> Result<Tensor> {
+        #[cfg(all(feature = "metal", target_os = "macos"))]
+        let convolved = measured!(
+            "convolution",
+            projected.device(),
+            match &self.convolution {
+                Some(kernel) => Ok::<_, Error>(kernel.forward(projected, &self.conv)?),
+                None => causal_convolution(projected, &self.conv, taps),
+            }
+        )?;
+        #[cfg(not(all(feature = "metal", target_os = "macos")))]
+        let convolved = measured!(
+            "convolution",
+            projected.device(),
+            causal_convolution(projected, &self.conv, taps)
+        )?;
+        Ok(convolved)
+    }
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "explicit tensors and continuation state implement the reference equation"
+    )]
+    fn recur_portable(
+        mixed: &Tensor,
+        g: &Tensor,
+        beta: &Tensor,
+        c: &TextConfig,
+        control: &Control,
+        recurrent: Option<&Tensor>,
+        capture: Option<usize>,
+        #[cfg(all(feature = "metal", target_os = "macos"))] kernel: Option<&DeltaKernel>,
+    ) -> Result<(Tensor, Option<Tensor>)> {
+        let t = mixed.dim(0)?;
+        let heads = c.linear_num_value_heads;
+        let kd = c.linear_key_head_dim;
+        let vd = c.linear_value_head_dim;
+        let key = c.linear_num_key_heads * kd;
+        let value = heads * vd;
+        let repeat: Vec<u32> = (0..heads)
+            .map(|i| (i / (heads / c.linear_num_key_heads)) as u32)
+            .collect();
+        let repeat = Tensor::new(repeat, mixed.device())?;
+        let q = mixed
+            .narrow(1, 0, key)?
+            .reshape((t, c.linear_num_key_heads, kd))?
+            .index_select(&repeat, 1)?;
+        let k = mixed
+            .narrow(1, key, key)?
+            .reshape((t, c.linear_num_key_heads, kd))?
+            .index_select(&repeat, 1)?;
+        let v = mixed.narrow(1, 2 * key, value)?.reshape((t, heads, vd))?;
+        measured!(
+            "recurrence",
+            mixed.device(),
+            delta_recurrence_prefill(
+                &q,
+                &k,
+                &v,
+                g,
+                beta,
+                control,
+                recurrent,
+                capture,
+                #[cfg(all(feature = "metal", target_os = "macos"))]
+                kernel,
+            )
+        )
+    }
+}
+fn retain(tensor: &Tensor) -> Result<Tensor> {
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    if tensor.device().is_metal() {
+        return Ok(compact_copy(tensor)?);
+    }
+    Ok(tensor.force_contiguous()?)
 }
 pub(super) fn causal_convolution(
     projected: &Tensor,
@@ -536,6 +795,7 @@ pub(super) fn causal_convolution(
     Ok(convolved)
 }
 
+#[cfg(all(test, feature = "metal", target_os = "macos"))]
 pub(super) fn delta_recurrence(
     q: &Tensor,
     k: &Tensor,
@@ -545,6 +805,35 @@ pub(super) fn delta_recurrence(
     control: &Control,
     #[cfg(all(feature = "metal", target_os = "macos"))] kernel: Option<&DeltaKernel>,
 ) -> Result<Tensor> {
+    Ok(delta_recurrence_prefill(
+        q,
+        k,
+        v,
+        g,
+        beta,
+        control,
+        None,
+        None,
+        #[cfg(all(feature = "metal", target_os = "macos"))]
+        kernel,
+    )?
+    .0)
+}
+#[allow(
+    clippy::too_many_arguments,
+    reason = "explicit tensors and immutable continuation state mirror the recurrence equation"
+)]
+fn delta_recurrence_prefill(
+    q: &Tensor,
+    k: &Tensor,
+    v: &Tensor,
+    g: &Tensor,
+    beta: &Tensor,
+    control: &Control,
+    initial: Option<&Tensor>,
+    capture: Option<usize>,
+    #[cfg(all(feature = "metal", target_os = "macos"))] kernel: Option<&DeltaKernel>,
+) -> Result<(Tensor, Option<Tensor>)> {
     fn l2(x: &Tensor) -> Result<Tensor> {
         let n = (x.sqr()?.sum_keepdim(D::Minus1)? + 1e-6)?.sqrt()?;
         Ok(x.broadcast_div(&n)?)
@@ -559,9 +848,21 @@ pub(super) fn delta_recurrence(
     let g = g.to_dtype(DType::F32)?;
     #[cfg(all(feature = "metal", target_os = "macos"))]
     if let Some(kernel) = kernel {
-        return kernel.forward(&q, &k, &v, &g, &beta, control);
+        if initial.is_none() && capture.is_none() {
+            return Ok((kernel.forward(&q, &k, &v, &g, &beta, control)?, None));
+        }
+        return kernel.prefill(&q, &k, &v, &g, &beta, control, initial, capture);
     }
-    let mut state = Tensor::zeros((heads, kd, vd), DType::F32, q.device())?;
+    let mut state = match initial {
+        Some(state) if state.dims() == [heads, kd, vd] => state.clone(),
+        Some(_) => {
+            return Err(Error::InvalidRequest(
+                "DeltaNet initial state dimensions".into(),
+            ));
+        }
+        None => Tensor::zeros((heads, kd, vd), DType::F32, q.device())?,
+    };
+    let mut saved = None;
     let mut outputs = Vec::with_capacity(t);
     for i in 0..t {
         control.check()?;
@@ -573,6 +874,9 @@ pub(super) fn delta_recurrence(
             .broadcast_mul(&beta.narrow(0, i, 1)?.reshape((heads, 1))?)?;
         state = (state + key.broadcast_mul(&delta.unsqueeze(1)?)?)?;
         outputs.push(state.broadcast_mul(&query)?.sum(1)?.unsqueeze(0)?);
+        if capture == Some(i + 1) {
+            saved = Some(retain(&state)?);
+        }
     }
-    Ok(Tensor::cat(&outputs, 0)?)
+    Ok((Tensor::cat(&outputs, 0)?, saved))
 }
