@@ -3,7 +3,7 @@
 #[cfg(all(feature = "metal", target_os = "macos"))]
 use candle_core::Device;
 use candle_core::{DType, Result as CandleResult, Tensor};
-use candle_nn::{Linear, Module};
+use candle_nn::{Linear, Module, ops::silu};
 
 #[cfg(all(feature = "metal", target_os = "macos"))]
 use super::neural::GemmKernel;
@@ -63,6 +63,21 @@ pub(super) struct Projection {
 impl Projection {
     pub fn weight(&self) -> &Tensor {
         self.linear.weight()
+    }
+    pub fn gated_forward(&self, input: &Tensor, up: &Self) -> CandleResult<Tensor> {
+        #[cfg(all(feature = "metal", target_os = "macos"))]
+        if let Some(kernel) = &self.kernel
+            && input.dim(0)? >= 512
+            && self.linear.bias().is_none()
+            && up.linear.bias().is_none()
+        {
+            return measured!(
+                "gemm",
+                input.device(),
+                kernel.gated(input, self.weight(), up.weight())
+            );
+        }
+        silu(&self.forward(input)?)? * up.forward(input)?
     }
     fn forward_inner(&self, input: &Tensor) -> CandleResult<Tensor> {
         #[cfg(all(feature = "metal", target_os = "macos"))]

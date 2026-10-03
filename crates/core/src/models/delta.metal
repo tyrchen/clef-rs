@@ -3,9 +3,18 @@ using namespace metal;
 #pragma clang fp contract(off)
 #pragma clang fp reassociate(off)
 constant ulong CLEF_KEY_DIM [[function_constant(0)]];
+#if CLEF_VALUES == 1
+using Values = float;
+#elif CLEF_VALUES == 2
+using Values = float2;
+#else
+using Values = float4;
+#endif
+#define CLEF_SECTIONS ((CLEF_VALUES + 3) / 4)
+#define CLEF_ACTIVE min(4u, uint(CLEF_VALUES))
 
-// Each SIMD group owns one value column, with up to four key-state values
-// per lane. SIMD collectives eliminate cross-group memory and barriers.
+// Each SIMD group owns a bounded vector of value columns. Each lane holds
+// up to four key-state vectors, avoiding cross-group memory and barriers.
 kernel void clef_delta(
     device const float* input [[buffer(0)]],
     device float* output [[buffer(1)]],
@@ -15,40 +24,67 @@ kernel void clef_delta(
     uint group [[threadgroup_position_in_grid]],
     uint lane [[thread_index_in_threadgroup]]) {
     const uint key_dim = uint(CLEF_KEY_DIM);
-    uint tiles = (value_dim + 3) / 4;
+    uint tiles = (value_dim + 4 * CLEF_VALUES - 1) / (4 * CLEF_VALUES);
     uint head = group / tiles;
-    uint value = (group % tiles) * 4 + lane / 32;
+    uint value = ((group % tiles) * 4 + lane / 32) * CLEF_VALUES;
     uint key_lane = lane % 32;
     uint parts = (key_dim + 31) / 32;
     uint packed_width = 2 * key_dim + value_dim + 2;
-    float state[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    Values state[4 * CLEF_SECTIONS];
+    #pragma clang loop unroll(full)
+    for (uint i = 0; i < 4 * CLEF_SECTIONS; ++i) state[i] = Values(0);
     for (uint t = 0; t < tokens; ++t) {
         uint base = (t * heads + head) * packed_width;
         float decay = input[base + 2 * key_dim + value_dim];
-        float keys[4];
-        float products[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        float beta = input[base + 2 * key_dim + value_dim + 1];
+        float keys[4], queries[4];
         #pragma clang loop unroll(full)
         for (uint p = 0; p < parts; ++p) {
             uint index = key_lane + p * 32;
             keys[p] = index < key_dim ? input[base + key_dim + index] : 0.0f;
-            state[p] *= decay;
-            products[p] = state[p] * keys[p];
+            queries[p] = index < key_dim ? input[base + index] : 0.0f;
         }
-        // Match Candle's 128-key block reduction: (0+64)+(32+96).
-        float dot = (products[0] + products[2]) + (products[1] + products[3]);
-        float memory = simd_sum(dot);
-        float actual = value < value_dim ? input[base + 2 * key_dim + value] : 0.0f;
-        float delta = (actual - memory) * input[base + 2 * key_dim + value_dim + 1];
         #pragma clang loop unroll(full)
-        for (uint p = 0; p < parts; ++p) {
-            uint index = key_lane + p * 32;
-            float query = index < key_dim ? input[base + index] : 0.0f;
-            state[p] += keys[p] * delta;
-            products[p] = state[p] * query;
+        for (uint section = 0; section < CLEF_SECTIONS; ++section) {
+            uint first = value + section * 4;
+            Values products[4] = {Values(0), Values(0), Values(0), Values(0)};
+            #pragma clang loop unroll(full)
+            for (uint p = 0; p < parts; ++p) {
+                state[section * 4 + p] *= decay;
+                products[p] = state[section * 4 + p] * keys[p];
+            }
+            // Preserve the reference (0+64)+(32+96) reduction per value column.
+            Values dot = (products[0] + products[2]) + (products[1] + products[3]);
+            Values memory = simd_sum(dot);
+            float4 loaded = float4(0);
+            #pragma clang loop unroll(full)
+            for (uint v = 0; v < CLEF_ACTIVE; ++v)
+                if (first + v < value_dim) loaded[v] = input[base + 2 * key_dim + first + v];
+#if CLEF_VALUES == 1
+            Values actual = loaded.x;
+#elif CLEF_VALUES == 2
+            Values actual = loaded.xy;
+#else
+            Values actual = loaded;
+#endif
+            Values delta = (actual - memory) * beta;
+            #pragma clang loop unroll(full)
+            for (uint p = 0; p < parts; ++p) {
+                state[section * 4 + p] += keys[p] * delta;
+                products[p] = state[section * 4 + p] * queries[p];
+            }
+            dot = (products[0] + products[2]) + (products[1] + products[3]);
+#if CLEF_VALUES == 2
+            float4 result = float4(simd_sum(dot), 0.0f, 0.0f);
+#else
+            float4 result = float4(simd_sum(dot));
+#endif
+            if (key_lane == 0) {
+                #pragma clang loop unroll(full)
+                for (uint v = 0; v < CLEF_ACTIVE; ++v)
+                    if (first + v < value_dim)
+                        output[(t * heads + head) * value_dim + first + v] = result[v];
+            }
         }
-        dot = (products[0] + products[2]) + (products[1] + products[3]);
-        float result = simd_sum(dot);
-        if (key_lane == 0 && value < value_dim)
-            output[(t * heads + head) * value_dim + value] = result;
     }
 }

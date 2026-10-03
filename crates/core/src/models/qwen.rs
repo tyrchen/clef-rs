@@ -284,7 +284,7 @@ impl Backbone {
                 .to_dtype(layer.gate.weight().dtype())?;
             let ff = layer
                 .down
-                .forward(&(silu(&layer.gate.forward(&norm)?)? * layer.up.forward(&norm)?)?)?;
+                .forward(&layer.gate.gated_forward(&norm, &layer.up)?)?;
             hidden = (hidden + ff.to_dtype(DType::F32)?)?;
         }
         self.norm.forward(&hidden)

@@ -1,6 +1,6 @@
 //! Checked safe dispatch for the fused F32 gated-DeltaNet recurrence.
 //!
-//! A group owns four value columns of one head. Each SIMD lane keeps up to four key states
+//! A group owns four SIMD vectors of value columns for one head. Each lane keeps key states
 //! in registers. SIMD reductions combine dot products without shared memory or
 //! cross-group barriers. Every output is written once. Validated dimensions, contiguous
 //! offsets and buffer lengths bound every shader address. No raw FFI or unsafe
@@ -14,7 +14,7 @@ use candle_metal_kernels::{
     metal::{ComputePipeline, ConstantValues, Value},
     source::SDPA,
 };
-use objc2_metal::{MTLComputePipelineState, MTLSize};
+use objc2_metal::{MTLComputePipelineState, MTLDevice, MTLGPUFamily, MTLSize};
 
 use super::Control;
 use crate::{Error, Result};
@@ -24,16 +24,47 @@ pub(super) struct DeltaKernel {
     pipeline: ComputePipeline,
     key_dim: usize,
     value_dim: usize,
+    values: usize,
 }
 impl DeltaKernel {
     pub fn new(device: &Device, key_dim: usize, value_dim: usize) -> Result<Option<Self>> {
+        let values = match device {
+            Device::Metal(metal)
+                if key_dim == 128
+                    && value_dim == 128
+                    && metal
+                        .device()
+                        .as_ref()
+                        .supportsFamily(MTLGPUFamily::Apple10) =>
+            {
+                4
+            }
+            _ => 1,
+        };
+        Self::new_variant(device, key_dim, value_dim, values)
+    }
+    fn new_variant(
+        device: &Device,
+        key_dim: usize,
+        value_dim: usize,
+        values: usize,
+    ) -> Result<Option<Self>> {
+        if ![1, 2, 4, 8, 16].contains(&values) {
+            return Err(Error::InvalidRequest("DeltaNet vector width".into()));
+        }
         let Device::Metal(device) = device else {
             return Ok(None);
         };
         dimensions(1, 1, key_dim, value_dim)?;
         let library = device
             .device()
-            .new_library_with_source(include_str!("delta.metal"), None)
+            .new_library_with_source(
+                &format!(
+                    "#define CLEF_VALUES {values}\n{}",
+                    include_str!("delta.metal")
+                ),
+                None,
+            )
             .map_err(|e| Error::InferenceFailed(format!("compile DeltaNet kernel: {e}")))?;
         let constants = ConstantValues::new(vec![(0, Value::USize(key_dim))]);
         let function = library
@@ -54,6 +85,7 @@ impl DeltaKernel {
             pipeline,
             key_dim,
             value_dim,
+            values,
         }))
     }
     pub fn forward(
@@ -85,7 +117,7 @@ impl DeltaKernel {
         Ok(out)
     }
 }
-fn dimensions(tokens: usize, heads: usize, key: usize, value: usize) -> Result<()> {
+pub(super) fn dimensions(tokens: usize, heads: usize, key: usize, value: usize) -> Result<()> {
     if !(1..=4096).contains(&tokens)
         || !(1..=32).contains(&heads)
         || !(1..=128).contains(&key)
@@ -128,7 +160,7 @@ impl CustomOp1 for DeltaKernel {
         }
         encoder.dispatch_thread_groups(
             MTLSize {
-                width: heads * self.value_dim.div_ceil(4),
+                width: heads * self.value_dim.div_ceil(4 * self.values),
                 height: 1,
                 depth: 1,
             },
@@ -373,29 +405,40 @@ mod tests {
     #[ignore = "diagnostic microprofile requires a real Apple Metal device"]
     fn test_should_profile_full_width_delta_kernel() -> Result<()> {
         let device = Device::new_metal(0)?;
-        let kernel = DeltaKernel::new(&device, 128, 128)?
-            .ok_or_else(|| Error::InferenceFailed("missing DeltaNet kernel".into()))?;
-        for tokens in [256, 1024, 4096] {
-            let control = Control {
-                cancel: Arc::new(AtomicBool::new(false)),
-                deadline: Instant::now() + Duration::from_secs(300),
-            };
-            let q = Tensor::full(0.01f32, (tokens, 32, 128), &device)?;
-            let k = Tensor::full(0.088f32, (tokens, 32, 128), &device)?;
-            let v = Tensor::full(0.25f32, (tokens, 32, 128), &device)?;
-            let g = Tensor::full(-0.03f32, (tokens, 32), &device)?;
-            let beta = Tensor::full(0.65f32, (tokens, 32), &device)?;
-            kernel.forward(&q, &k, &v, &g, &beta, &control)?;
-            device.synchronize()?;
-            let started = Instant::now();
-            for _ in 0..3 {
-                kernel.forward(&q, &k, &v, &g, &beta, &control)?;
+        let reference =
+            DeltaKernel::new_variant(&device, 128, 128, 1)?.ok_or(Error::ArtifactMissing)?;
+        for values in [1, 2, 4, 8, 16] {
+            let kernel = DeltaKernel::new_variant(&device, 128, 128, values)?
+                .ok_or_else(|| Error::InferenceFailed("missing DeltaNet kernel".into()))?;
+            for tokens in [256, 1024, 4096] {
+                let control = Control {
+                    cancel: Arc::new(AtomicBool::new(false)),
+                    deadline: Instant::now() + Duration::from_secs(300),
+                };
+                let q = Tensor::full(0.01f32, (tokens, 32, 128), &device)?;
+                let k = Tensor::full(0.088f32, (tokens, 32, 128), &device)?;
+                let v = Tensor::full(0.25f32, (tokens, 32, 128), &device)?;
+                let g = Tensor::full(-0.03f32, (tokens, 32), &device)?;
+                let beta = Tensor::full(0.65f32, (tokens, 32), &device)?;
+                let expected = reference.forward(&q, &k, &v, &g, &beta, &control)?;
+                let actual = kernel.forward(&q, &k, &v, &g, &beta, &control)?;
+                let drift = (&actual - &expected)?
+                    .abs()?
+                    .flatten_all()?
+                    .max(0)?
+                    .to_scalar::<f32>()?;
+                assert!(drift <= 1e-7, "Delta vector {values} drift={drift}");
                 device.synchronize()?;
+                let started = Instant::now();
+                for _ in 0..3 {
+                    kernel.forward(&q, &k, &v, &g, &beta, &control)?;
+                    device.synchronize()?;
+                }
+                eprintln!(
+                    "DeltaNet {tokens} tokens values={values}: {:.3} ms per layer",
+                    started.elapsed().as_secs_f64() * 1000. / 3.
+                );
             }
-            eprintln!(
-                "DeltaNet {tokens} tokens: {:.3} ms per layer",
-                started.elapsed().as_secs_f64() * 1000. / 3.
-            );
         }
         Ok(())
     }
@@ -486,44 +529,46 @@ mod tests {
             let g = Tensor::full(-0.03f32, (tokens, heads), &Device::Cpu)?;
             let beta = Tensor::full(0.65f32, (tokens, heads), &Device::Cpu)?;
             let expected = delta_recurrence(&q, &k, &v, &g, &beta, &control, None)?;
-            let kernel = DeltaKernel::new(&device, key, value)?;
-            let actual = delta_recurrence(
-                &q.to_device(&device)?,
-                &k.to_device(&device)?,
-                &v.to_device(&device)?,
-                &g.to_device(&device)?,
-                &beta.to_device(&device)?,
-                &control,
-                kernel.as_ref(),
-            )?
-            .to_device(&Device::Cpu)?;
-            if key == 128 && tokens == 17 {
-                let reference = delta_recurrence(
+            for values in [1, 2, 4, 8, 16] {
+                let kernel = DeltaKernel::new_variant(&device, key, value, values)?;
+                let actual = delta_recurrence(
                     &q.to_device(&device)?,
                     &k.to_device(&device)?,
                     &v.to_device(&device)?,
                     &g.to_device(&device)?,
                     &beta.to_device(&device)?,
                     &control,
-                    None,
+                    kernel.as_ref(),
                 )?
                 .to_device(&Device::Cpu)?;
-                let drift = (&actual - reference)?
+                if key == 128 && tokens == 17 {
+                    let reference = delta_recurrence(
+                        &q.to_device(&device)?,
+                        &k.to_device(&device)?,
+                        &v.to_device(&device)?,
+                        &g.to_device(&device)?,
+                        &beta.to_device(&device)?,
+                        &control,
+                        None,
+                    )?
+                    .to_device(&Device::Cpu)?;
+                    let drift = (&actual - reference)?
+                        .abs()?
+                        .flatten_all()?
+                        .max(0)?
+                        .to_scalar::<f32>()?;
+                    assert!(drift < 1e-7, "Metal reduction-order drift {drift}");
+                }
+                let error = (&actual - &expected)?
                     .abs()?
                     .flatten_all()?
                     .max(0)?
                     .to_scalar::<f32>()?;
-                assert!(drift < 1e-7, "Metal reduction-order drift {drift}");
+                assert!(
+                    error < 1e-5,
+                    "dimensions {tokens}/{heads}/{key}/{value} values={values}: error {error}"
+                );
             }
-            let error = (&actual - expected)?
-                .abs()?
-                .flatten_all()?
-                .max(0)?
-                .to_scalar::<f32>()?;
-            assert!(
-                error < 1e-5,
-                "dimensions {tokens}/{heads}/{key}/{value}: error {error}"
-            );
         }
         Ok(())
     }

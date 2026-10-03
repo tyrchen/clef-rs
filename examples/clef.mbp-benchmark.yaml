@@ -15,7 +15,7 @@ cases:
     tokens: 4096
     fields: 1
     options: 2
-    samples: 3
+    samples: 10
   - name: mixed-8-fields
     tokens: 1024
     fields: 8
@@ -25,12 +25,12 @@ cases:
     tokens: 3072
     fields: 32
     options: 2
-    samples: 3
+    samples: 10
   - name: large-option-schema
     tokens: 4096
     fields: 4
     options: 64
-    samples: 3
+    samples: 10
   - name: minimal-139
     tokens: 139
     fields: 1

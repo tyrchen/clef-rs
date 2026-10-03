@@ -12,6 +12,8 @@ macro_rules! measured {
         }
     }};
 }
+#[cfg(all(test, feature = "metal", target_os = "macos"))]
+mod chunk;
 #[cfg(test)]
 pub(crate) mod diagnostics;
 pub(crate) mod head;

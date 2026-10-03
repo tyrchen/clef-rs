@@ -120,7 +120,7 @@ BENCHMARK_CONFIG ?= $(CURDIR)/examples/clef.benchmark.yaml
 BENCHMARK_RESULTS ?= $(CURDIR)/docs/benchmarks/flash-cpu-metal
 BENCHMARK_THREADS ?= 8
 METAL_BENCHMARK_PROFILES ?= metal:f32 metal:f16
-MBP_BENCHMARK_RESULTS ?= $(CURDIR)/docs/benchmarks/flash-metal-tuned
+MBP_BENCHMARK_RESULTS ?= $(CURDIR)/docs/benchmarks/flash-metal-prefill
 METAL_PROFILE_CONFIG ?= $(CURDIR)/examples/clef.profile.yaml
 METAL_PROFILE_RESULTS ?= $(CLEF_TARGET_DIRECTORY)/clef-metal-profile
 METAL_PROFILE_STAMP := $(shell date -u +%Y%m%dT%H%M%SZ)
@@ -179,6 +179,7 @@ profile-metal:
 	xctrace export --input '$(METAL_PROFILE_RUN).trace' --toc --output '$(METAL_PROFILE_RUN).toc.xml'
 
 verify-metal-neural:
+	$(CARGO) test -p clef-rs-core --features metal test_should_reject_invalid_metal4_projection_inputs --release -- --ignored
 	$(CARGO) test -p clef-rs-core --features metal test_should_match_metal4_projections_and_profile_flash_shapes --release -- --ignored --nocapture
 
 profile-metal-kernels:
@@ -200,3 +201,18 @@ verify-metal-pointwise:
 	$(CARGO) test -p clef-rs-core --features metal models::pointwise --release -- --ignored --nocapture
 
 .PHONY: verify-metal-pointwise
+
+profile-metal-long-gemm:
+	$(CARGO) test -p clef-rs-core --features metal test_should_profile_metal4_long_prefill_variants --release -- --ignored --nocapture
+
+.PHONY: profile-metal-long-gemm
+
+profile-metal-chunk:
+	$(CARGO) test -p clef-rs-core --features metal models::chunk --release -- --ignored --nocapture
+
+.PHONY: profile-metal-chunk
+
+profile-metal-ffn:
+	$(CARGO) test -p clef-rs-core --features metal test_should_profile_metal4_gated_tiles --release -- --ignored --nocapture
+
+.PHONY: profile-metal-ffn
