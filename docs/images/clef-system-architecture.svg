@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="1230" viewBox="0 0 1480 1230" role="img" aria-labelledby="title desc" lang="zh-CN">
+<title id="title">CLEF Flash 系统架构</title>
+<desc id="desc">CLI 与 HTTP 适配层调用核心受控运行时；模型通过独立获取路径进入已验证缓存，设备线程独占模型张量；嵌入式应用也可以直接调用同步引擎。</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#52637c"/></marker>
+<marker id="green-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#31866b"/></marker>
+<marker id="blue-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4772bf"/></marker>
+</defs>
+<style>
+text {font-family: 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif; fill: #192b45;}
+.heading {font-size: 30px; font-weight: 700;}
+.subtitle {font-size: 16px; fill: #5d6b80;}
+.group {font-size: 21px; font-weight: 650;}
+.label {font-size: 19px; font-weight: 600;}
+.detail {font-size: 15px; fill: #5d6b80;}
+.note {font-size: 14px; fill: #5d6b80;}
+</style>
+<rect width="1480" height="1230" fill="#ffffff"/>
+
+<text x="48" y="53" class="heading" text-anchor="start">CLEF Flash · 系统架构</text>
+<text x="48" y="86" class="subtitle" text-anchor="start">服务与核心单向依赖 · 明确获取模型 · 有界调度 · 单线程持有设备张量</text>
+<rect x="390" y="250" width="680" height="230" rx="18" fill="#f5f8fd" stroke="#d9e2ef" stroke-width="1.5"/>
+<text x="414" y="284" class="group" text-anchor="start">clef-rs-server / 传输与入口</text>
+<rect x="35" y="535" width="1410" height="600" rx="18" fill="#f5faf8" stroke="#d4e5df" stroke-width="1.5"/>
+<text x="59" y="569" class="group" text-anchor="start">clef-rs-core</text>
+<polyline points="195,200 50,200 50,632 65,632" fill="none" stroke="#31866b" stroke-width="2" stroke-linejoin="round" marker-end="url(#green-arrow)"/>
+<polyline points="555,200 555,225 1055,225 1055,340 1040,340" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="915,200 1087,200 1087,440 1040,440" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="730,370 730,410" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="730,470 730,595" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="1280,200 1280,595" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="1410,165 1460,165 1460,965 1360,965" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="215,395 215,515 250,515 250,595" fill="none" stroke="#31866b" stroke-width="2" stroke-linejoin="round" marker-end="url(#green-arrow)"/>
+<polyline points="250,675 250,705" fill="none" stroke="#31866b" stroke-width="2" stroke-linejoin="round" marker-end="url(#green-arrow)"/>
+<polyline points="250,780 250,815" fill="none" stroke="#31866b" stroke-width="2" stroke-linejoin="round" marker-end="url(#green-arrow)"/>
+<polyline points="250,890 250,930" fill="none" stroke="#31866b" stroke-width="2" stroke-linejoin="round" marker-end="url(#green-arrow)"/>
+<polyline points="435,967 1005,967" fill="none" stroke="#31866b" stroke-width="2" stroke-linejoin="round" marker-end="url(#green-arrow)"/>
+<polyline points="680,675 680,715" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="855,752 1005,752" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="1182,790 1182,820" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="1182,895 1182,930" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="1182,1010 1182,1040" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="505,1077 470,1077 470,500 605,500 605,470" fill="none" stroke="#4772bf" stroke-width="2" stroke-linejoin="round" marker-end="url(#blue-arrow)" stroke-dasharray="7 6"/>
+<rect x="65" y="130" width="260" height="70" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="195.0" y="161.0" class="label" text-anchor="middle">模型管理 CLI</text>
+<text x="195.0" y="186.0" class="detail" text-anchor="middle">fetch / import / cache</text>
+<rect x="425" y="130" width="260" height="70" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="555.0" y="161.0" class="label" text-anchor="middle">HTTP 调用方</text>
+<text x="555.0" y="186.0" class="detail" text-anchor="middle">决策 / 发现 / 健康 / 指标</text>
+<rect x="785" y="130" width="260" height="70" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="915.0" y="161.0" class="label" text-anchor="middle">决策 CLI</text>
+<text x="915.0" y="186.0" class="detail" text-anchor="middle">clef decide</text>
+<rect x="1130" y="130" width="290" height="70" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="1275.0" y="161.0" class="label" text-anchor="middle">嵌入式 Rust 应用</text>
+<text x="1275.0" y="186.0" class="detail" text-anchor="middle">Managed / Direct</text>
+<rect x="65" y="315" width="300" height="80" rx="12" fill="#edf7f2" stroke="#b6d8c8" stroke-width="1.5"/>
+<text x="215.0" y="351.0" class="label" text-anchor="middle">Hugging Face 固定版本</text>
+<text x="215.0" y="376.0" class="detail" text-anchor="middle">Hub 下载传输 / 文件清单</text>
+<rect x="420" y="310" width="620" height="60" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="730.0" y="336.0" class="label" text-anchor="middle">HTTP 防护与认证</text>
+<text x="730.0" y="361.0" class="detail" text-anchor="middle">连接上限 · 读超时 · JWT · 授权 · 限流</text>
+<rect x="420" y="410" width="620" height="60" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="730.0" y="436.0" class="label" text-anchor="middle">HTTP / CLI 适配</text>
+<text x="730.0" y="461.0" class="detail" text-anchor="middle">请求解析 · 调用核心 · 兼容响应 · 错误映射</text>
+<rect x="65" y="595" width="370" height="80" rx="12" fill="#edf7f2" stroke="#b6d8c8" stroke-width="1.5"/>
+<text x="250.0" y="631.0" class="label" text-anchor="middle">ArtifactStore</text>
+<text x="250.0" y="656.0" class="detail" text-anchor="middle">有界获取 actor / 导入 / 校验</text>
+<rect x="65" y="705" width="370" height="75" rx="12" fill="#edf7f2" stroke="#b6d8c8" stroke-width="1.5"/>
+<text x="250.0" y="738.5" class="label" text-anchor="middle">内容寻址缓存</text>
+<text x="250.0" y="763.5" class="detail" text-anchor="middle">blobs / staging / snapshots / locks</text>
+<rect x="65" y="815" width="370" height="75" rx="12" fill="#edf7f2" stroke="#b6d8c8" stroke-width="1.5"/>
+<text x="250.0" y="848.5" class="label" text-anchor="middle">VerifiedSnapshot</text>
+<text x="250.0" y="873.5" class="detail" text-anchor="middle">完整性验证 / 共享租约</text>
+<rect x="65" y="930" width="370" height="75" rx="12" fill="#edf7f2" stroke="#b6d8c8" stroke-width="1.5"/>
+<text x="250.0" y="963.5" class="label" text-anchor="middle">Weights</text>
+<text x="250.0" y="988.5" class="detail" text-anchor="middle">严格张量目录 / 安全分片加载</text>
+<rect x="505" y="595" width="855" height="80" rx="12" fill="#edf3ff" stroke="#bdcfee" stroke-width="1.5"/>
+<text x="932.5" y="631.0" class="label" text-anchor="middle">DecisionClient</text>
+<text x="932.5" y="656.0" class="detail" text-anchor="middle">请求数、准备并发、payload 与 token 预算</text>
+<rect x="505" y="715" width="350" height="75" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="680.0" y="748.5" class="label" text-anchor="middle">Encoder / 准备</text>
+<text x="680.0" y="773.5" class="detail" text-anchor="middle">参考渲染 · tokens · spans · media</text>
+<rect x="1005" y="715" width="355" height="75" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="1182.5" y="748.5" class="label" text-anchor="middle">公平调度器</text>
+<text x="1182.5" y="773.5" class="detail" text-anchor="middle">主体间轮转 / 主体内 FIFO</text>
+<rect x="1005" y="820" width="355" height="75" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="1182.5" y="853.5" class="label" text-anchor="middle">专用设备线程</text>
+<text x="1182.5" y="878.5" class="detail" text-anchor="middle">执行 · 取消检查 · 恢复 · 同步</text>
+<rect x="1005" y="930" width="355" height="80" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="1182.5" y="966.0" class="label" text-anchor="middle">DirectEngine</text>
+<text x="1182.5" y="991.0" class="detail" text-anchor="middle">独占主干、分类头与可选视觉塔</text>
+<rect x="505" y="1040" width="855" height="75" rx="12" fill="#edf3ff" stroke="#bdcfee" stroke-width="1.5"/>
+<text x="932.5" y="1073.5" class="label" text-anchor="middle">模型图 → 类型化 DecisionResult</text>
+<text x="932.5" y="1098.5" class="detail" text-anchor="middle">可选视觉塔 → Qwen3.5 主干 → 联合分类头 → 答案概率</text>
+<text x="1368" y="545" class="note" text-anchor="start">Direct</text>
+<text x="496" y="951" class="note" text-anchor="start" style="fill:#31866b">已验证权重</text>
+<text x="75" y="1178" class="note" text-anchor="start" style="fill:#31866b">绿色：模型获取与加载</text>
+<text x="370" y="1178" class="note" text-anchor="start">实线：请求与执行</text>
+<text x="670" y="1178" class="note" text-anchor="start" style="fill:#4772bf">蓝色虚线：结果返回适配层</text>
+<text x="75" y="1207" class="note" text-anchor="start">架构基线：c372942；该版本已验证 CPU F32。后续设备资格以相应验证报告为准。</text>
+</svg>

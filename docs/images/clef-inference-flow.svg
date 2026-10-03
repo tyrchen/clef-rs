@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="960" viewBox="0 0 1480 960" role="img" aria-labelledby="title desc" lang="zh-CN">
+<title id="title">CLEF Flash 推理流程</title>
+<desc id="desc">经过校验的 state 与有序 questions 被参考编码；可选图片经过解码、预处理和视觉塔成为视觉 embedding；Qwen 混合主干和联合分类头产生 logits，经 softmax 转为三类答案。</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#52637c"/></marker>
+<marker id="green-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#31866b"/></marker>
+<marker id="blue-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4772bf"/></marker>
+</defs>
+<style>
+text {font-family: 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif; fill: #192b45;}
+.heading {font-size: 30px; font-weight: 700;}
+.subtitle {font-size: 16px; fill: #5d6b80;}
+.group {font-size: 21px; font-weight: 650;}
+.label {font-size: 19px; font-weight: 600;}
+.detail {font-size: 15px; fill: #5d6b80;}
+.note {font-size: 14px; fill: #5d6b80;}
+</style>
+<rect width="1480" height="960" fill="#ffffff"/>
+
+<text x="48" y="53" class="heading" text-anchor="start">CLEF Flash · 一次决策的计算流程</text>
+<text x="48" y="86" class="subtitle" text-anchor="start">独立请求 / 无生成缓存 · 分类头使用问题与选项 span · 概率在接口转换时才舍入</text>
+<rect x="35" y="125" width="1410" height="180" rx="18" fill="#f5f8fd" stroke="#d9e2ef" stroke-width="1.5"/>
+<text x="59" y="159" class="group" text-anchor="start">输入与参考编码</text>
+<rect x="35" y="350" width="1410" height="195" rx="18" fill="#f5faf8" stroke="#d4e5df" stroke-width="1.5"/>
+<text x="59" y="384" class="group" text-anchor="start">可选图片路径 / vision feature</text>
+<rect x="35" y="590" width="1410" height="215" rx="18" fill="#f5f8fd" stroke="#d9e2ef" stroke-width="1.5"/>
+<text x="59" y="624" class="group" text-anchor="start">主干与联合分类</text>
+<polyline points="340,232 410,232" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="760,232 830,232" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="1120,272 1120,328 1395,328 1395,582 340,582 340,635" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="340,456 410,456" fill="none" stroke="#31866b" stroke-width="2" stroke-linejoin="round" marker-end="url(#green-arrow)"/>
+<polyline points="760,456 830,456" fill="none" stroke="#31866b" stroke-width="2" stroke-linejoin="round" marker-end="url(#green-arrow)"/>
+<polyline points="1120,496 1120,564 245,564 245,635" fill="none" stroke="#31866b" stroke-width="2" stroke-linejoin="round" marker-end="url(#green-arrow)"/>
+<polyline points="420,680 500,680" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="960,680 1030,680" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="1205,725 1205,817 492,817 492,835" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="830,232 805,232 805,618 730,618 730,635" fill="none" stroke="#4772bf" stroke-width="2" stroke-linejoin="round" marker-end="url(#blue-arrow)" stroke-dasharray="7 6"/>
+<rect x="65" y="192" width="275" height="80" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="202.5" y="228.0" class="label" text-anchor="middle">state + 有序 questions</text>
+<text x="202.5" y="253.0" class="detail" text-anchor="middle">noul / choice / score</text>
+<rect x="410" y="192" width="350" height="80" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="585.0" y="228.0" class="label" text-anchor="middle">边界校验</text>
+<text x="585.0" y="253.0" class="detail" text-anchor="middle">重复键 · 类型 · 字节 · 深度 · 数量</text>
+<rect x="830" y="192" width="550" height="80" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="1105.0" y="228.0" class="label" text-anchor="middle">参考渲染与分段 tokenization</text>
+<text x="1105.0" y="253.0" class="detail" text-anchor="middle">token IDs / 问题、选项 spans / 上下文策略</text>
+<rect x="65" y="416" width="275" height="80" rx="12" fill="#edf7f2" stroke="#b6d8c8" stroke-width="1.5"/>
+<text x="202.5" y="452.0" class="label" text-anchor="middle">PNG / JPEG / RGB</text>
+<text x="202.5" y="477.0" class="detail" text-anchor="middle">编码、像素、尺寸、metadata 上限</text>
+<rect x="410" y="416" width="350" height="80" rx="12" fill="#edf7f2" stroke="#b6d8c8" stroke-width="1.5"/>
+<text x="585.0" y="452.0" class="label" text-anchor="middle">图片预处理</text>
+<text x="585.0" y="477.0" class="detail" text-anchor="middle">解码 · bicubic 缩放 · 归一化 · patches</text>
+<rect x="830" y="416" width="550" height="80" rx="12" fill="#edf7f2" stroke="#b6d8c8" stroke-width="1.5"/>
+<text x="1105.0" y="452.0" class="label" text-anchor="middle">27 层视觉塔 + merger</text>
+<text x="1105.0" y="477.0" class="detail" text-anchor="middle">视觉 embedding / 与图片占位 token 对齐</text>
+<rect x="65" y="635" width="355" height="90" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="242.5" y="676.0" class="label" text-anchor="middle">Qwen3.5 混合主干</text>
+<text x="242.5" y="701.0" class="detail" text-anchor="middle">32 层：8 完整注意力 + 24 线性注意力</text>
+<rect x="500" y="635" width="460" height="90" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="730.0" y="676.0" class="label" text-anchor="middle">学习型联合分类头</text>
+<text x="730.0" y="701.0" class="detail" text-anchor="middle">span 汇聚 / 词汇特征 / 2 路由 + 4 解码</text>
+<rect x="1030" y="635" width="350" height="90" rx="12" fill="#ffffff" stroke="#ccd8e8" stroke-width="1.5"/>
+<text x="1205.0" y="676.0" class="label" text-anchor="middle">按问题计算概率</text>
+<text x="1205.0" y="701.0" class="detail" text-anchor="middle">logits → 稳定 softmax</text>
+<text x="75" y="774" class="detail" text-anchor="start">主干输出所有输入位置的隐藏状态；联合分类头按整个 schema 联合计算各选项 logits。</text>
+<rect x="65" y="835" width="855" height="80" rx="12" fill="#edf3ff" stroke="#bdcfee" stroke-width="1.5"/>
+<text x="492.5" y="871.0" class="label" text-anchor="middle">类型化答案</text>
+<text x="492.5" y="896.0" class="detail" text-anchor="middle">noul：true 概率 / choice：获胜选项 / score：序号期望值</text>
+<rect x="1030" y="835" width="350" height="80" rx="12" fill="#edf3ff" stroke="#bdcfee" stroke-width="1.5"/>
+<text x="1205.0" y="871.0" class="label" text-anchor="middle">响应转换</text>
+<text x="1205.0" y="896.0" class="detail" text-anchor="middle">库内未舍入 / 兼容输出四位小数</text>
+<polyline points="920,875 1030,875" fill="none" stroke="#52637c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="70" y="939" class="note" text-anchor="start">蓝色虚线：问题与选项 token span 送入分类头；绿色：可选图片 embedding 路径。</text>
+</svg>
