@@ -34,6 +34,49 @@ The previous [CPU/Metal campaign](benchmarks/flash-cpu-metal/report.md) remains 
 
 Implementation rationale and numerical pitfalls are recorded in [the research evidence](research/clef-metal-performance-research.md) and [design contract](../specs/clef-metal-performance-design.md).
 
+## Latest projection and pointwise campaign
+
+The committed `190a459` implementation completed the same eight workloads on this MBP, sequentially in F32 and mixed F16, with 79 normal samples and 54 managed admission attempts per precision. Each case has one excluded warmup. The [raw report](benchmarks/flash-metal-tuned/report.md) preserves all samples and environment/executable/configuration hashes. The implementation adds shape-selected matrix tiles, direct half output, fused RMSNorm and fused causal convolution; the prior campaigns below remain intact.
+
+| Workload | n | Previous M5 F16 ms | Tuned F16 ms | Mean latency reduction |
+| --- | ---: | ---: | ---: | ---: |
+| short-256 | 10 | 306.912 | 225.560 | 26.5% |
+| medium-1024 | 10 | 1226.342 | 880.720 | 28.2% |
+| long-4096 | 3 | 6091.856 | 3902.149 | 35.9% |
+| mixed-8-fields | 10 | 1238.903 | 894.514 | 27.8% |
+| wide-32-fields | 3 | 4388.024 | 2867.769 | 34.6% |
+| large-option-schema | 3 | 6125.369 | 3921.047 | 36.0% |
+| minimal-139 | 20 | 209.566 | 169.785 | 19.0% |
+| compact-192 | 20 | 250.308 | 193.051 | 22.9% |
+
+F16 mean latency falls 19.0–36.0% across all eight workloads versus the previous M5 implementation. Matching the original six Metal F16 workloads gives 18.31–19.94× speedups. The 139-token request averages 169.785 ms with p95 170.951 ms (n=20); 256 tokens averages 225.560 ms with p95 226.767 ms (n=10). **100 ms has not been demonstrated.** These timings include encoding and GPU completion, with HTTP/authentication excluded. Three-sample long cases do not establish production tail latency.
+
+| Workload | n | Reused CPU F32 ms | Previous M5 F32 ms | Tuned F32 ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| short-256 | 10 | 13271.713 | 682.777 | 622.549 |
+| medium-1024 | 10 | 51347.788 | 2773.547 | 2485.774 |
+| long-4096 | 3 | 212415.691 | 11517.158 | 10266.398 |
+| mixed-8-fields | 10 | 51335.671 | 2802.787 | 2503.339 |
+| wide-32-fields | 3 | 156584.235 | 8647.113 | 7677.114 |
+| large-option-schema | 3 | 213301.310 | 11598.797 | 10307.017 |
+| minimal-139 | 20 | — | 479.022 | 449.957 |
+| compact-192 | 20 | — | 536.868 | 493.134 |
+
+F32 mean latency falls 6.1–11.2% versus the previous M5 campaign, without changing projection precision. The CPU reference uses Candle's pure-Rust backend without Accelerate/MKL; its full-weight performance data is reused, and CPU build/operator/regression gates were repeated.
+
+At concurrency 1/2/8/16, tuned F16 completed 4.391/4.402/4.387/4.373 successful 256-token decisions/s. Each precision completed 38 of 54 admissions, with 16 expected `queueFull` rejections under overload and no inference errors. One owner executes GPU work, so concurrency queues requests rather than multiplying device throughput. The concurrency-16 successful p95 is 1,831.713 ms. These are finite embedded-runtime measurements, not HTTP load or sustained-throughput qualification.
+
+| Precision | Previous sampled GPU peak GiB | Tuned sampled GPU peak GiB | Previous OS peak footprint GiB | Tuned OS peak footprint GiB |
+| --- | ---: | ---: | ---: | ---: |
+| f32 | 36.077 | 35.920 | 42.300 | 40.531 |
+| f16 | 18.712 | 18.527 | 26.826 | 26.756 |
+
+Both sampled GPU peaks and OS footprint high-water marks fit the retained device/host plans. The memory metrics overlap and must not be added; GPU sampling every 100 ms may miss short peaks and excludes managed reload. F16 snapshot verification/model loading took 6.428/17.459 s in a new process; warm latency excludes those phases and driver/OS caches were not cleared.
+
+All six full-model text/context/PNG/JPEG qualifications passed the existing probability gates, reproducing the previous M5 maximum/mean errors exactly. Both precision profiles passed real CLI/authenticated HTTP results, provenance, image inference and shutdown checks. Default/vision/Metal build/test/format/pedantic and boundary lint gates, documentation and dependency policy checks passed. The same [verification report](clef-flash-verification.md) and [machine-readable qualification](benchmarks/flash-metal-tuned/qualification.json) record the evidence. This remains mixed F16 with F32 accumulation; FP8 is not implemented.
+
+The [operator diagnostics](benchmarks/flash-metal-tuned/operator-diagnostics.json) retain the tile sweep and before/after backbone categories. They use synthetic tensors and explicit barriers, with incomplete category coverage, and are excluded from the normal latency statistics. The workload, hashes, completion flags, sample counts, statistics, overload outcomes and capacity bounds were independently checked after both processes exited successfully.
+
 ## Previous M5 campaign
 
 The final sequential campaign used the committed `988691f` implementation on the 64 GiB M5 Pro. Both precisions completed all 79 direct samples and 54 managed admission attempts. Every case has one excluded warmup. The earlier fused-only campaign used `5df02eb`; the original baseline used the pre-optimization graph. Raw reports retain executable SHA-256, configuration SHA-256, exact model revision, environment, individual samples and process metrics. The dirty-tree flags include documentation and measurement artifacts; the measured Rust source corresponds to the stated commits.

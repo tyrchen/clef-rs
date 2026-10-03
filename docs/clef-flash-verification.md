@@ -1,6 +1,6 @@
 # CLEF Flash v1 verification
 
-Verified on 2026-10-01/02 against the actual pinned Flash weights. Supported v1 execution profiles are **CPU F32 and native macOS Metal F32/mixed F16, text or optional still images, up to 4,096 total tokens**. The library, CLI, and authenticated HTTP adapter use the same encoder, model graph, learned joint head, and answer conversion. The larger CLEF model, CUDA, video, and longer contexts are rejected explicitly.
+Verified on 2026-10-01/02 (latest follow-up 2026-10-03 UTC) against the actual pinned Flash weights. Supported v1 execution profiles are **CPU F32 and native macOS Metal F32/mixed F16, text or optional still images, up to 4,096 total tokens**. The library, CLI, and authenticated HTTP adapter use the same encoder, model graph, learned joint head, and answer conversion. The larger CLEF model, CUDA, video, and longer contexts are rejected explicitly.
 
 ## Reference and environment
 
@@ -75,6 +75,25 @@ Text fixtures include ordered/reordered schemas, missing instructions, Unicode, 
 Synthetic fixtures independently check hybrid full/linear attention, causal convolution and recurrent state, norms, gates, partial/multimodal rotary positions, the learned joint schema head, and the entire vision tower/merger. Tiled attention includes a sequence spanning multiple tiles. The released tokenizer's token IDs and half-open question/option spans match exactly. Image resize/patch fixtures match Torch's uint8 antialiased bicubic path; a four-image fixture checks all multimodal position coordinates against Transformers.
 
 JPEG RGB output matches Pillow exactly on the checked pixel fixture. Other tested Rust JPEG decoders differed by up to two pixel levels and caused a full-model probability error above the unchanged gate. The pinned native codec fixes that difference; its private safe wrapper bounds encoded bytes, dimensions, components, progressive scans, metadata, and output allocation. A 10,000-case mutation fuzz run passed. That campaign is regression evidence, not a proof that the native library has no defects. Distribution notices are [preserved separately](licenses/index.md).
+
+## Projection and pointwise tuning qualification
+
+The `190a459` implementation adds shape-selected MPP tiles, direct cooperative half output, and fused backbone RMSNorm/four-tap convolution. Full-model checks retain the original gates and reproduce the preceding M5 maximum/mean errors exactly in both precisions:
+
+| Profile | Corpus | Probabilities | Maximum absolute error | Mean absolute error | Rust test elapsed |
+| --- | --- | ---: | ---: | ---: | ---: |
+| F32 | 100 mixed text requests | 800 | 0.000003114343 | 0.000000202775 | 108.18 s |
+| F32 | 4,096-token text and two PNG shapes | 24 | 0.000005424023 | 0.000001789847 | 56.13 s |
+| F32 | Baseline and progressive JPEG | 16 | 0.000004351139 | 0.000001026667 | 36.04 s |
+| Mixed F16 | 100 mixed text requests | 800 | 0.000443369150 | 0.000037016605 | 53.61 s |
+| Mixed F16 | 4,096-token text and two PNG shapes | 24 | 0.000328183174 | 0.000090070253 | 33.36 s |
+| Mixed F16 | Baseline and progressive JPEG | 16 | 0.000418752432 | 0.000095413183 | 25.73 s |
+
+Operator checks exercise both matrix tile shapes against CPU accumulation with half rounding, convolution causal tails with exact F32 equality, and RMSNorm with at most 1e-6 F32 error and exact half rounding. Invalid dtype, shape, sequence bounds and strided pointwise inputs are rejected before dispatch. Test-only category instrumentation adds no barriers or timing state to production inference.
+
+Authenticated full-weight HTTP regression passed on F32 (34.05 s) and mixed F16 (25.46 s), requiring exact direct/router/TCP results, provenance and owner shutdown. Both release CLI/server smoke tests passed with offline PNG/JPEG inference, oracle probabilities, protected discovery/metrics, SIGTERM drain and exact CLI/HTTP answers. Default/vision/Metal workspace builds/tests, nightly formatting, all-target pedantic Clippy, production boundary Clippy, no-default-feature compilation, warning-free public docs, artifact checks and seven benchmark tests passed. The current counts are 29 core/eight server/nine doc tests by default, 33/eight/nine with vision, and 34/nine/nine with Metal+vision. Audit and deny passed with the existing unmaintained `paste` advisory exception; dependencies and the lockfile did not change.
+
+After the commit, the final Metal build/test/pedantic gate, five recurrence/attention diagnostics, both projection tiles and three pointwise checks passed again. The backbone category diagnostic completed all four lengths. The [normal benchmark](benchmarks/flash-metal-tuned/report.md) then completed 79 samples per precision and 54 managed admissions per precision. Independent checks verified completion flags, exact source/executable/configuration identity, unchanged YAML workloads, raw sample counts/statistics, expected overload errors and device/host capacity bounds. No Rust/MSL source changed after the measured implementation commit. The [qualification JSON](benchmarks/flash-metal-tuned/qualification.json) retains unrounded maximum/mean errors and oracle fixture hashes; category/geometry measurements are separate diagnostics.
 
 ## Resource and lifecycle evidence
 

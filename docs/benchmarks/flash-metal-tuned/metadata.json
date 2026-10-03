@@ -1,0 +1,83 @@
+{
+  "startedAt": "2026-10-03T01:33:11.774955+00:00",
+  "hardware": {
+    "system": "Darwin",
+    "release": "25.5.0",
+    "machine": "arm64",
+    "cpu": "Apple M5 Pro",
+    "ramBytes": 68719476736,
+    "cpuCores": 18,
+    "osVersion": "26.5.2",
+    "gpus": [
+      {
+        "model": "Apple M5 Pro",
+        "cores": "20",
+        "metal": "spdisplays_metal4"
+      }
+    ]
+  },
+  "rust": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "gitCommit": "190a459c52c3389c79ed0ad05ebf532c365fd81c",
+  "gitDirty": true,
+  "binarySha256": "340cd09a14e41012a323112d06764793b7f3f238ef2278ad3b48675a35f9a563",
+  "configSha256": "50879c4b71c5bb481491fc17b2a4b01a6ee9a5e78f539b429d00dde22285127f",
+  "profiles": [
+    "metal:f32",
+    "metal:f16"
+  ],
+  "threadSettings": {
+    "RAYON_NUM_THREADS": "8",
+    "CANDLE_NUM_THREADS": "8"
+  },
+  "processes": {
+    "metal:f32": {
+      "wallSeconds": 308.31957575,
+      "peakRssBytes": 32664993792,
+      "command": [
+        "/Users/tchen/.target/release/examples/benchmark",
+        "--cache-dir",
+        "/Users/tchen/.cache/clef-rs",
+        "--config",
+        "/Users/tchen/projects/mycode/rust/clef-rs/examples/clef.mbp-benchmark.yaml",
+        "--device",
+        "metal",
+        "--dtype",
+        "f32",
+        "--output",
+        "/Users/tchen/projects/mycode/rust/clef-rs/docs/benchmarks/flash-metal-tuned/metal-f32.json"
+      ],
+      "peakFootprintBytes": 43519933448,
+      "timeRealSeconds": 308.28,
+      "userCpuSeconds": 33.59,
+      "systemCpuSeconds": 16.62,
+      "averageCpuCores": 0.16287141559621127
+    },
+    "metal:f16": {
+      "wallSeconds": 137.42071541700005,
+      "peakRssBytes": 27457224704,
+      "command": [
+        "/Users/tchen/.target/release/examples/benchmark",
+        "--cache-dir",
+        "/Users/tchen/.cache/clef-rs",
+        "--config",
+        "/Users/tchen/projects/mycode/rust/clef-rs/examples/clef.mbp-benchmark.yaml",
+        "--device",
+        "metal",
+        "--dtype",
+        "f16",
+        "--output",
+        "/Users/tchen/projects/mycode/rust/clef-rs/docs/benchmarks/flash-metal-tuned/metal-f16.json"
+      ],
+      "peakFootprintBytes": 28729446128,
+      "timeRealSeconds": 137.41,
+      "userCpuSeconds": 37.75,
+      "systemCpuSeconds": 7.4,
+      "averageCpuCores": 0.3285787060621498
+    }
+  },
+  "postMeasurementNotes": [
+    "The measured Rust/MSL implementation is committed as `190a459c52c3389c79ed0ad05ebf532c365fd81c`. The dirty-tree flag reflects documentation/measurement artifacts and unrelated local documentation; no Rust/MSL source changed after that commit.",
+    "See [the previous M5 campaign](../flash-metal-m5/report.md) and [the original CPU/Metal baseline](../flash-cpu-metal/report.md). Exact YAML workloads and sample counts match the previous M5 campaign. CPU equations did not change; CPU correctness gates were repeated and the prior 82-minute full-weight CPU performance campaign is reused.",
+    "Additional evidence: [six full-model probability qualifications](qualification.json), [synthetic tile/backbone diagnostics](operator-diagnostics.json), [implementation and before/after analysis](../../clef-flash-metal-performance.md), and [executed correctness gates](../../clef-flash-verification.md). Operator diagnostics use synchronization barriers and are excluded from normal samples."
+  ]
+}

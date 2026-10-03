@@ -1,0 +1,1406 @@
+{
+  "schemaVersion": 1,
+  "implementationCommit": "190a459",
+  "purpose": "Synthetic operator diagnostics; explicit synchronization changes scheduling. Not normal-path latency or throughput.",
+  "tileSweep": [
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 139,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 2.097,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 256,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 2.359,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 5.452,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 26.444,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 139,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 1.318,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 256,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 1.739,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 6.382,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 27.241,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 139,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 0.995,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 256,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 1.092,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 3.438,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 16.149,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 139,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 0.624,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 256,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 0.682,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 1.925,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 8.159,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 139,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.244,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 256,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.254,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 1024,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.658,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 64,
+      "rows": 4096,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 2.36,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 139,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 1.953,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 256,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 2.026,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 4.859,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 17.722,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 139,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 1.196,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 256,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 1.521,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 6.009,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 16.748,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 139,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 0.902,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 256,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 0.919,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 2.689,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 10.547,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 139,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 0.621,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 256,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 0.578,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 1.453,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 5.472,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 139,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.269,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 256,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.262,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 1024,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.546,
+      "samples": 3
+    },
+    {
+      "tileM": 32,
+      "tileN": 128,
+      "rows": 4096,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 1.588,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 139,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 1.165,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 256,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 1.346,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 4.053,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 21.746,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 139,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 1.205,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 256,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 1.429,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 4.169,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 23.874,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 139,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 0.922,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 256,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 0.931,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 2.682,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 13.31,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 139,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 0.626,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 256,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 0.574,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 1.5,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 6.86,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 139,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.262,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 256,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.261,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 1024,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.531,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 64,
+      "rows": 4096,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 1.943,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 139,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 1.437,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 256,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 1.553,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 4.377,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 16.675,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 139,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 1.122,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 256,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 1.288,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 3.707,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 15.08,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 139,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 0.874,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 256,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 0.883,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 2.629,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 9.999,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 139,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 0.62,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 256,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 0.51,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 1.518,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 5.089,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 139,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.304,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 256,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.262,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 1024,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.516,
+      "samples": 3
+    },
+    {
+      "tileM": 64,
+      "tileN": 128,
+      "rows": 4096,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 1.495,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 139,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 1.853,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 256,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 1.402,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 4.299,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 17.977,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 139,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 1.183,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 256,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 1.415,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 3.692,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 22.56,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 139,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 0.984,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 256,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 0.891,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 2.654,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 10.734,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 139,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 0.63,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 256,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 0.539,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 1.42,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 5.689,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 139,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.321,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 256,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.271,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 1024,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.544,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 64,
+      "rows": 4096,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 1.613,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 139,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 2.403,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 256,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 2.244,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 1024,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 5.168,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 4096,
+      "columns": 12288,
+      "inner": 4096,
+      "meanMs": 19.148,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 139,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 1.423,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 256,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 1.464,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 4.523,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 12288,
+      "meanMs": 17.502,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 139,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 1.133,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 256,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 1.032,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 1024,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 3.166,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 4096,
+      "columns": 8192,
+      "inner": 4096,
+      "meanMs": 11.388,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 139,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 0.709,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 256,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 0.575,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 1024,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 1.682,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 4096,
+      "columns": 4096,
+      "inner": 4096,
+      "meanMs": 6.1,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 139,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.417,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 256,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.367,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 1024,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 0.589,
+      "samples": 3
+    },
+    {
+      "tileM": 128,
+      "tileN": 128,
+      "rows": 4096,
+      "columns": 1024,
+      "inner": 4096,
+      "meanMs": 1.75,
+      "samples": 3
+    }
+  ],
+  "backboneBefore": {
+    "implementationBaselineCommit": "8d517c6",
+    "instrumentation": "Test-only timing added for this campaign; not an immutable committed baseline test binary.",
+    "samplesPerShape": 1,
+    "cases": [
+      {
+        "tokens": 139,
+        "categories": {
+          "deltaNet": {
+            "calls": 24,
+            "exclusiveMs": 76.874175,
+            "inclusiveMs": 195.977257
+          },
+          "fullAttention": {
+            "calls": 8,
+            "exclusiveMs": 14.747625000000003,
+            "inclusiveMs": 45.897917
+          },
+          "gemm": {
+            "calls": 248,
+            "exclusiveMs": 207.737047,
+            "inclusiveMs": 207.737047
+          },
+          "normalization": {
+            "calls": 105,
+            "exclusiveMs": 61.64013200000001,
+            "inclusiveMs": 61.64013200000001
+          },
+          "recurrence": {
+            "calls": 24,
+            "exclusiveMs": 30.53133,
+            "inclusiveMs": 30.53133
+          },
+          "sdpa": {
+            "calls": 8,
+            "exclusiveMs": 3.6518750000000004,
+            "inclusiveMs": 3.6518750000000004
+          }
+        }
+      },
+      {
+        "tokens": 256,
+        "categories": {
+          "deltaNet": {
+            "calls": 24,
+            "exclusiveMs": 102.889872,
+            "inclusiveMs": 256.21999800000003
+          },
+          "fullAttention": {
+            "calls": 8,
+            "exclusiveMs": 19.915665,
+            "inclusiveMs": 58.106583
+          },
+          "gemm": {
+            "calls": 248,
+            "exclusiveMs": 246.95645599999986,
+            "inclusiveMs": 246.95645599999986
+          },
+          "normalization": {
+            "calls": 105,
+            "exclusiveMs": 83.18625700000003,
+            "inclusiveMs": 83.18625700000003
+          },
+          "recurrence": {
+            "calls": 24,
+            "exclusiveMs": 50.76916800000001,
+            "inclusiveMs": 50.76916800000001
+          },
+          "sdpa": {
+            "calls": 8,
+            "exclusiveMs": 4.961624,
+            "inclusiveMs": 4.961624
+          }
+        }
+      },
+      {
+        "tokens": 1024,
+        "categories": {
+          "deltaNet": {
+            "calls": 24,
+            "exclusiveMs": 383.284537,
+            "inclusiveMs": 865.096129
+          },
+          "fullAttention": {
+            "calls": 8,
+            "exclusiveMs": 61.428630000000005,
+            "inclusiveMs": 192.935291
+          },
+          "gemm": {
+            "calls": 248,
+            "exclusiveMs": 719.6433759999999,
+            "inclusiveMs": 719.6433759999999
+          },
+          "normalization": {
+            "calls": 105,
+            "exclusiveMs": 280.79762199999993,
+            "inclusiveMs": 280.79762199999993
+          },
+          "recurrence": {
+            "calls": 24,
+            "exclusiveMs": 203.48942099999994,
+            "inclusiveMs": 203.48942099999994
+          },
+          "sdpa": {
+            "calls": 8,
+            "exclusiveMs": 31.270538,
+            "inclusiveMs": 31.270538
+          }
+        }
+      },
+      {
+        "tokens": 4096,
+        "categories": {
+          "deltaNet": {
+            "calls": 24,
+            "exclusiveMs": 1568.6226599999998,
+            "inclusiveMs": 3729.4615409999997
+          },
+          "fullAttention": {
+            "calls": 8,
+            "exclusiveMs": 249.29100100000002,
+            "inclusiveMs": 1087.2989169999998
+          },
+          "gemm": {
+            "calls": 248,
+            "exclusiveMs": 3683.237919000001,
+            "inclusiveMs": 3683.237919000001
+          },
+          "normalization": {
+            "calls": 105,
+            "exclusiveMs": 1176.7485840000002,
+            "inclusiveMs": 1176.7485840000002
+          },
+          "recurrence": {
+            "calls": 24,
+            "exclusiveMs": 887.68421,
+            "inclusiveMs": 887.68421
+          },
+          "sdpa": {
+            "calls": 8,
+            "exclusiveMs": 398.462165,
+            "inclusiveMs": 398.462165
+          }
+        }
+      }
+    ]
+  },
+  "backboneAfter": {
+    "implementationCommit": "190a459",
+    "samplesPerShape": 1,
+    "cases": [
+      {
+        "tokens": 139,
+        "categories": {
+          "convolution": {
+            "calls": 24,
+            "exclusiveMs": 6.976127999999999,
+            "inclusiveMs": 6.976127999999999
+          },
+          "deltaNet": {
+            "calls": 24,
+            "exclusiveMs": 53.626242,
+            "inclusiveMs": 156.857417
+          },
+          "fullAttention": {
+            "calls": 8,
+            "exclusiveMs": 14.576539,
+            "inclusiveMs": 38.256415999999994
+          },
+          "gemm": {
+            "calls": 248,
+            "exclusiveMs": 173.03886899999998,
+            "inclusiveMs": 173.03886899999998
+          },
+          "normalization": {
+            "calls": 105,
+            "exclusiveMs": 29.872420999999992,
+            "inclusiveMs": 29.872420999999992
+          },
+          "recurrence": {
+            "calls": 24,
+            "exclusiveMs": 29.205209000000004,
+            "inclusiveMs": 29.205209000000004
+          },
+          "sdpa": {
+            "calls": 8,
+            "exclusiveMs": 3.3747100000000003,
+            "inclusiveMs": 3.3747100000000003
+          }
+        }
+      },
+      {
+        "tokens": 256,
+        "categories": {
+          "convolution": {
+            "calls": 24,
+            "exclusiveMs": 8.173667,
+            "inclusiveMs": 8.173667
+          },
+          "deltaNet": {
+            "calls": 24,
+            "exclusiveMs": 64.224462,
+            "inclusiveMs": 191.11295600000003
+          },
+          "fullAttention": {
+            "calls": 8,
+            "exclusiveMs": 19.63833,
+            "inclusiveMs": 46.985207
+          },
+          "gemm": {
+            "calls": 248,
+            "exclusiveMs": 192.42524100000003,
+            "inclusiveMs": 192.42524100000003
+          },
+          "normalization": {
+            "calls": 105,
+            "exclusiveMs": 32.242256999999995,
+            "inclusiveMs": 32.242256999999995
+          },
+          "recurrence": {
+            "calls": 24,
+            "exclusiveMs": 48.445871,
+            "inclusiveMs": 48.445871
+          },
+          "sdpa": {
+            "calls": 8,
+            "exclusiveMs": 4.725542,
+            "inclusiveMs": 4.725542
+          }
+        }
+      },
+      {
+        "tokens": 1024,
+        "categories": {
+          "convolution": {
+            "calls": 24,
+            "exclusiveMs": 21.574166999999996,
+            "inclusiveMs": 21.574166999999996
+          },
+          "deltaNet": {
+            "calls": 24,
+            "exclusiveMs": 180.87629,
+            "inclusiveMs": 567.2755410000002
+          },
+          "fullAttention": {
+            "calls": 8,
+            "exclusiveMs": 60.477746,
+            "inclusiveMs": 150.98133500000003
+          },
+          "gemm": {
+            "calls": 248,
+            "exclusiveMs": 552.5412090000005,
+            "inclusiveMs": 552.5412090000005
+          },
+          "normalization": {
+            "calls": 105,
+            "exclusiveMs": 81.40933900000002,
+            "inclusiveMs": 81.40933900000002
+          },
+          "recurrence": {
+            "calls": 24,
+            "exclusiveMs": 196.168627,
+            "inclusiveMs": 196.168627
+          },
+          "sdpa": {
+            "calls": 8,
+            "exclusiveMs": 30.681499999999996,
+            "inclusiveMs": 30.681499999999996
+          }
+        }
+      },
+      {
+        "tokens": 4096,
+        "categories": {
+          "convolution": {
+            "calls": 24,
+            "exclusiveMs": 100.10300099999998,
+            "inclusiveMs": 100.10300099999998
+          },
+          "deltaNet": {
+            "calls": 24,
+            "exclusiveMs": 745.58637,
+            "inclusiveMs": 2318.6358750000004
+          },
+          "fullAttention": {
+            "calls": 8,
+            "exclusiveMs": 242.955166,
+            "inclusiveMs": 867.0718759999999
+          },
+          "gemm": {
+            "calls": 248,
+            "exclusiveMs": 2135.9233360000003,
+            "inclusiveMs": 2135.9233360000003
+          },
+          "normalization": {
+            "calls": 105,
+            "exclusiveMs": 317.1760819999999,
+            "inclusiveMs": 317.1760819999999
+          },
+          "recurrence": {
+            "calls": 24,
+            "exclusiveMs": 865.735502,
+            "inclusiveMs": 865.735502
+          },
+          "sdpa": {
+            "calls": 8,
+            "exclusiveMs": 402.36466699999994,
+            "inclusiveMs": 402.36466699999994
+          }
+        }
+      }
+    ]
+  },
+  "notes": [
+    "One excluded warmup per backbone shape; repeated synthetic token ID 42.",
+    "Categories do not cover every activation/residual operation. Explicit synchronization changes normal scheduling.",
+    "The before diagnostic predates the separate convolution category. Parent exclusive times therefore have different category coverage; compare matching leaf categories only.",
+    "Tile entries retain three-sample means rounded to 0.001 ms, not individual samples."
+  ]
+}
