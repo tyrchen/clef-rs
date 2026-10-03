@@ -119,7 +119,8 @@ CLEF_BENCH_BINARY ?= $(CLEF_TARGET_DIRECTORY)/release/examples/benchmark
 BENCHMARK_CONFIG ?= $(CURDIR)/examples/clef.benchmark.yaml
 BENCHMARK_RESULTS ?= $(CURDIR)/docs/benchmarks/flash-cpu-metal
 BENCHMARK_THREADS ?= 8
-MBP_BENCHMARK_RESULTS ?= $(CURDIR)/docs/benchmarks/flash-metal-m5
+METAL_BENCHMARK_PROFILES ?= metal:f32 metal:f16
+MBP_BENCHMARK_RESULTS ?= $(CURDIR)/docs/benchmarks/flash-metal-tuned
 METAL_PROFILE_CONFIG ?= $(CURDIR)/examples/clef.profile.yaml
 METAL_PROFILE_RESULTS ?= $(CLEF_TARGET_DIRECTORY)/clef-metal-profile
 METAL_PROFILE_STAMP := $(shell date -u +%Y%m%dT%H%M%SZ)
@@ -166,7 +167,7 @@ bench-cpu:
 
 bench-metal:
 	$(CARGO) build -p clef-rs-core --example benchmark --release --features metal
-	$(PYTHON) tests/performance/run.py --binary '$(CLEF_BENCH_BINARY)' --cache '$(CLEF_RELEASE_CACHE)' --config '$(BENCHMARK_CONFIG)' --output '$(BENCHMARK_RESULTS)' --threads '$(BENCHMARK_THREADS)' --profiles metal:f32 metal:f16
+	$(PYTHON) tests/performance/run.py --binary '$(CLEF_BENCH_BINARY)' --cache '$(CLEF_RELEASE_CACHE)' --config '$(BENCHMARK_CONFIG)' --output '$(BENCHMARK_RESULTS)' --threads '$(BENCHMARK_THREADS)' --profiles $(METAL_BENCHMARK_PROFILES)
 
 bench-mbp:
 	$(MAKE) bench-metal BENCHMARK_CONFIG='$(CURDIR)/examples/clef.mbp-benchmark.yaml' BENCHMARK_RESULTS='$(MBP_BENCHMARK_RESULTS)'
@@ -184,3 +185,18 @@ profile-metal-kernels:
 	$(CARGO) test -p clef-rs-core --features metal test_should_profile_full_width_delta_kernel --release -- --ignored --nocapture
 
 .PHONY: verify-metal-operators verify-metal-release verify-metal-media verify-metal-serving verify-metal-cli verify-benchmark bench-domain bench-report bench-inference bench-cpu bench-metal bench-mbp profile-metal profile-metal-kernels verify-metal-neural
+
+profile-metal-backbone:
+	CLEF_RELEASE_DEVICE=metal CLEF_RELEASE_DTYPE=f16 CLEF_RELEASE_CACHE='$(CLEF_RELEASE_CACHE)' $(CARGO) test -p clef-rs-core --features metal test_should_profile_flash_backbone_categories --release -- --ignored --nocapture
+
+.PHONY: profile-metal-backbone
+
+profile-metal-tiles:
+	$(CARGO) test -p clef-rs-core --features metal test_should_profile_metal4_projection_tiles --release -- --ignored --nocapture
+
+.PHONY: profile-metal-tiles
+
+verify-metal-pointwise:
+	$(CARGO) test -p clef-rs-core --features metal models::pointwise --release -- --ignored --nocapture
+
+.PHONY: verify-metal-pointwise

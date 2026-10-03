@@ -64,9 +64,7 @@ impl Projection {
     pub fn weight(&self) -> &Tensor {
         self.linear.weight()
     }
-}
-impl Module for Projection {
-    fn forward(&self, input: &Tensor) -> CandleResult<Tensor> {
+    fn forward_inner(&self, input: &Tensor) -> CandleResult<Tensor> {
         #[cfg(all(feature = "metal", target_os = "macos"))]
         if let Some(kernel) = &self.kernel {
             // Tiny decay/beta projections are faster on the existing kernel.
@@ -79,5 +77,11 @@ impl Module for Projection {
             }
         }
         self.linear.forward(input)
+    }
+}
+
+impl Module for Projection {
+    fn forward(&self, input: &Tensor) -> CandleResult<Tensor> {
+        measured!("gemm", input.device(), self.forward_inner(input))
     }
 }

@@ -15,6 +15,13 @@ use super::Control;
 use crate::{Error, Result};
 
 pub(crate) fn rms(x: &Tensor, weight: &Tensor, eps: f64, offset: bool) -> Result<Tensor> {
+    measured!(
+        "normalization",
+        x.device(),
+        rms_inner(x, weight, eps, offset)
+    )
+}
+fn rms_inner(x: &Tensor, weight: &Tensor, eps: f64, offset: bool) -> Result<Tensor> {
     let f = x.to_dtype(DType::F32)?;
     let inverse = (f.sqr()?.mean_keepdim(D::Minus1)? + eps)?.sqrt()?.recip()?;
     let w = weight.to_dtype(DType::F32)?;

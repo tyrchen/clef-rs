@@ -231,7 +231,7 @@ struct AttentionParams {
     value_strides: [i64; 3],
     output_strides: [i64; 3],
 }
-fn checked_f32_buffer(input: &MetalStorage, layout: &Layout) -> CandleResult<usize> {
+pub(super) fn checked_f32_buffer(input: &MetalStorage, layout: &Layout) -> CandleResult<usize> {
     if input.dtype() != DType::F32 || !layout.is_contiguous() {
         return Err(CandleError::Msg(
             "custom Metal operation requires contiguous F32".into(),

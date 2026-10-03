@@ -1,10 +1,28 @@
 //! Private safe tensor implementation of the pinned Qwen3.5/CLEF graph.
+// Diagnostic barriers exist only in test binaries, never normal inference.
+macro_rules! measured {
+    ($name:expr, $device:expr, $operation:expr) => {{
+        #[cfg(test)]
+        {
+            $crate::models::diagnostics::measure($name, $device, || $operation)
+        }
+        #[cfg(not(test))]
+        {
+            $operation
+        }
+    }};
+}
+#[cfg(test)]
+pub(crate) mod diagnostics;
 pub(crate) mod head;
 #[cfg(all(feature = "metal", target_os = "macos"))]
 mod metal;
 #[cfg(all(feature = "metal", target_os = "macos"))]
 mod neural;
+mod normalization;
 pub(crate) mod ops;
+#[cfg(all(feature = "metal", target_os = "macos"))]
+mod pointwise;
 mod projection;
 pub(crate) mod qwen;
 #[cfg(feature = "vision")]

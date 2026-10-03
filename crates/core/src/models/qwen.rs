@@ -15,13 +15,17 @@ use candle_nn::{
 };
 use serde::Deserialize;
 
-#[cfg(all(feature = "metal", target_os = "macos"))]
-use super::metal::{AttentionKernel, DeltaKernel};
 use super::{
     Control,
-    ops::{attention, rms, rotary},
+    normalization::{Norms, Rms},
+    ops::{attention, rotary},
     projection::{Projection, Projections},
     weights::Weights,
+};
+#[cfg(all(feature = "metal", target_os = "macos"))]
+use super::{
+    metal::{AttentionKernel, DeltaKernel},
+    pointwise::ConvKernel,
 };
 use crate::{Error, Result};
 
@@ -103,11 +107,13 @@ struct FullAttention {
     k: Projection,
     v: Projection,
     out: Projection,
-    qn: Tensor,
-    kn: Tensor,
+    qn: Rms,
+    kn: Rms,
 }
 #[derive(Debug)]
 struct Delta {
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    convolution: Option<ConvKernel>,
     #[cfg(all(feature = "metal", target_os = "macos"))]
     kernel: Option<DeltaKernel>,
     qkv: Projection,
@@ -118,7 +124,7 @@ struct Delta {
     conv: Tensor,
     dt: Tensor,
     a_log: Tensor,
-    norm: Tensor,
+    norm: Rms,
 }
 #[derive(Debug)]
 enum Mixer {
@@ -127,8 +133,8 @@ enum Mixer {
 }
 #[derive(Debug)]
 struct Layer {
-    input_norm: Tensor,
-    post_norm: Tensor,
+    input_norm: Rms,
+    post_norm: Rms,
     mixer: Mixer,
     gate: Projection,
     up: Projection,
@@ -138,7 +144,7 @@ struct Layer {
 pub(crate) struct Backbone {
     embeddings: Tensor,
     pub output_embeddings: Tensor,
-    norm: Tensor,
+    norm: Rms,
     layers: Vec<Layer>,
     config: TextConfig,
 }
@@ -162,7 +168,8 @@ impl Backbone {
         #[cfg(all(feature = "metal", target_os = "macos"))]
         let attention_kernel = AttentionKernel::new(embeddings.device(), c.head_dim)?;
         let output_embeddings = w.take("lm_head.weight", &[c.vocab_size, h])?;
-        let norm = w.take("model.language_model.norm.weight", &[h])?;
+        let norms = Norms::new(embeddings.device(), c.rms_norm_eps)?;
+        let norm = norms.load(w, "model.language_model.norm.weight", h, true)?;
         let mut layers = Vec::with_capacity(c.num_hidden_layers);
         for (index, kind) in c.layer_types.iter().enumerate() {
             let p = format!("model.language_model.layers.{index}");
@@ -170,6 +177,7 @@ impl Backbone {
                 Mixer::Full(FullAttention::load(
                     w,
                     &projections,
+                    &norms,
                     &c,
                     &p,
                     #[cfg(all(feature = "metal", target_os = "macos"))]
@@ -179,6 +187,7 @@ impl Backbone {
                 Mixer::Linear(Delta::load(
                     w,
                     &projections,
+                    &norms,
                     &c,
                     &p,
                     #[cfg(all(feature = "metal", target_os = "macos"))]
@@ -187,8 +196,13 @@ impl Backbone {
             };
             layers.push(Layer {
                 mixer,
-                input_norm: w.take(&format!("{p}.input_layernorm.weight"), &[h])?,
-                post_norm: w.take(&format!("{p}.post_attention_layernorm.weight"), &[h])?,
+                input_norm: norms.load(w, &format!("{p}.input_layernorm.weight"), h, true)?,
+                post_norm: norms.load(
+                    w,
+                    &format!("{p}.post_attention_layernorm.weight"),
+                    h,
+                    true,
+                )?,
                 gate: projections.load(
                     w,
                     &format!("{p}.mlp.gate_proj"),
@@ -247,27 +261,40 @@ impl Backbone {
         hidden = hidden.to_dtype(DType::F32)?;
         for layer in &self.layers {
             control.check()?;
-            let input = rms(&hidden, &layer.input_norm, self.config.rms_norm_eps, true)?
+            let input = layer
+                .input_norm
+                .forward(&hidden)?
                 .to_dtype(layer.gate.weight().dtype())?;
             let mixed = match &layer.mixer {
-                Mixer::Full(a) => a.forward(&input, &self.config, positions, control)?,
-                Mixer::Linear(a) => a.forward(&input, &self.config, control)?,
+                Mixer::Full(a) => measured!(
+                    "fullAttention",
+                    input.device(),
+                    a.forward(&input, &self.config, positions, control)
+                )?,
+                Mixer::Linear(a) => measured!(
+                    "deltaNet",
+                    input.device(),
+                    a.forward(&input, &self.config, control)
+                )?,
             };
             hidden = (hidden + mixed.to_dtype(DType::F32)?)?;
-            let norm = rms(&hidden, &layer.post_norm, self.config.rms_norm_eps, true)?
+            let norm = layer
+                .post_norm
+                .forward(&hidden)?
                 .to_dtype(layer.gate.weight().dtype())?;
             let ff = layer
                 .down
                 .forward(&(silu(&layer.gate.forward(&norm)?)? * layer.up.forward(&norm)?)?)?;
             hidden = (hidden + ff.to_dtype(DType::F32)?)?;
         }
-        rms(&hidden, &self.norm, self.config.rms_norm_eps, true)
+        self.norm.forward(&hidden)
     }
 }
 impl FullAttention {
     fn load(
         w: &mut Weights,
         projections: &Projections,
+        norms: &Norms,
         c: &TextConfig,
         p: &str,
         #[cfg(all(feature = "metal", target_os = "macos"))] kernel: Option<AttentionKernel>,
@@ -282,8 +309,8 @@ impl FullAttention {
             k: projections.load(w, &format!("{p}.self_attn.k_proj"), h, kv, false)?,
             v: projections.load(w, &format!("{p}.self_attn.v_proj"), h, kv, false)?,
             out: projections.load(w, &format!("{p}.self_attn.o_proj"), n, h, false)?,
-            qn: w.take(&format!("{p}.self_attn.q_norm.weight"), &[c.head_dim])?,
-            kn: w.take(&format!("{p}.self_attn.k_norm.weight"), &[c.head_dim])?,
+            qn: norms.load(w, &format!("{p}.self_attn.q_norm.weight"), c.head_dim, true)?,
+            kn: norms.load(w, &format!("{p}.self_attn.k_norm.weight"), c.head_dim, true)?,
         })
     }
     fn forward(
@@ -301,13 +328,10 @@ impl FullAttention {
             .narrow(2, d, d)?
             .contiguous()?
             .reshape((t, heads * d))?;
-        let q = rms(&projected.narrow(2, 0, d)?, &self.qn, c.rms_norm_eps, true)?;
-        let k = rms(
-            &self.k.forward(x)?.reshape((t, c.num_key_value_heads, d))?,
-            &self.kn,
-            c.rms_norm_eps,
-            true,
-        )?;
+        let q = self.qn.forward(&projected.narrow(2, 0, d)?)?;
+        let k = self
+            .kn
+            .forward(&self.k.forward(x)?.reshape((t, c.num_key_value_heads, d))?)?;
         let rotary_dim = (d as f64 * c.rope_parameters.partial_rotary_factor) as usize;
         let q = rotary(
             &q,
@@ -335,7 +359,7 @@ impl FullAttention {
             .contiguous()?;
         #[cfg(all(feature = "metal", target_os = "macos"))]
         let attended = match &self.kernel {
-            Some(kernel) => kernel.forward(&q, &k, &v, control)?,
+            Some(kernel) => measured!("sdpa", x.device(), kernel.forward(&q, &k, &v, control))?,
             None => attention(&q, &k, &v, true, control)?,
         };
         #[cfg(not(all(feature = "metal", target_os = "macos")))]
@@ -352,6 +376,7 @@ impl Delta {
     fn load(
         w: &mut Weights,
         projections: &Projections,
+        norms: &Norms,
         c: &TextConfig,
         p: &str,
         #[cfg(all(feature = "metal", target_os = "macos"))] kernel: Option<DeltaKernel>,
@@ -360,6 +385,8 @@ impl Delta {
         let key = c.linear_num_key_heads * c.linear_key_head_dim;
         let value = c.linear_num_value_heads * c.linear_value_head_dim;
         Ok(Self {
+            #[cfg(all(feature = "metal", target_os = "macos"))]
+            convolution: norms.convolution(),
             #[cfg(all(feature = "metal", target_os = "macos"))]
             kernel,
             qkv: projections.load(
@@ -385,10 +412,12 @@ impl Delta {
                 false,
             )?,
             out: projections.load(w, &format!("{p}.linear_attn.out_proj"), value, h, false)?,
-            conv: w.take(
-                &format!("{p}.linear_attn.conv1d.weight"),
-                &[2 * key + value, 1, c.linear_conv_kernel_dim],
-            )?,
+            conv: w
+                .take(
+                    &format!("{p}.linear_attn.conv1d.weight"),
+                    &[2 * key + value, 1, c.linear_conv_kernel_dim],
+                )?
+                .to_dtype(DType::F32)?,
             dt: w.take(
                 &format!("{p}.linear_attn.dt_bias"),
                 &[c.linear_num_value_heads],
@@ -397,9 +426,11 @@ impl Delta {
                 &format!("{p}.linear_attn.A_log"),
                 &[c.linear_num_value_heads],
             )?,
-            norm: w.take(
+            norm: norms.load(
+                w,
                 &format!("{p}.linear_attn.norm.weight"),
-                &[c.linear_value_head_dim],
+                c.linear_value_head_dim,
+                false,
             )?,
         })
     }
@@ -410,31 +441,22 @@ impl Delta {
         let vd = c.linear_value_head_dim;
         let key = c.linear_num_key_heads * kd;
         let value = heads * vd;
-        let width = 2 * key + value;
         let projected = self.qkv.forward(x)?.to_dtype(DType::F32)?;
-        // Explicit causal depthwise convolution: oldest kernel tap sees t-(K-1).
-        let mut convolved = Tensor::zeros((t, width), DType::F32, x.device())?;
-        for tap in 0..c.linear_conv_kernel_dim {
-            let delay = c.linear_conv_kernel_dim - 1 - tap;
-            if delay >= t {
-                continue;
+        #[cfg(all(feature = "metal", target_os = "macos"))]
+        let convolved = measured!(
+            "convolution",
+            x.device(),
+            match &self.convolution {
+                Some(kernel) => Ok::<_, Error>(kernel.forward(&projected, &self.conv)?),
+                None => causal_convolution(&projected, &self.conv, c.linear_conv_kernel_dim),
             }
-            let weight = self
-                .conv
-                .narrow(2, tap, 1)?
-                .reshape((1, width))?
-                .to_dtype(DType::F32)?;
-            let part = projected.narrow(0, 0, t - delay)?.broadcast_mul(&weight)?;
-            let part = if delay == 0 {
-                part
-            } else {
-                Tensor::cat(
-                    &[Tensor::zeros((delay, width), DType::F32, x.device())?, part],
-                    0,
-                )?
-            };
-            convolved = (convolved + part)?;
-        }
+        )?;
+        #[cfg(not(all(feature = "metal", target_os = "macos")))]
+        let convolved = measured!(
+            "convolution",
+            x.device(),
+            causal_convolution(&projected, &self.conv, c.linear_conv_kernel_dim)
+        )?;
         let mixed = silu(&convolved)?;
         let repeat: Vec<u32> = (0..heads)
             .map(|i| (i / (heads / c.linear_num_key_heads)) as u32)
@@ -458,25 +480,62 @@ impl Delta {
         let softplus = (a.clamp(0., f64::INFINITY)? + ((a.abs()?.neg()?.exp()? + 1.)?.log()?))?;
         let g = softplus.broadcast_mul(&self.a_log.to_dtype(DType::F32)?.exp()?.neg()?)?;
         let beta = sigmoid(&self.b.forward(x)?.to_dtype(DType::F32)?)?;
-        let out = delta_recurrence(
-            &q,
-            &k,
-            &v,
-            &g,
-            &beta,
-            control,
-            #[cfg(all(feature = "metal", target_os = "macos"))]
-            self.kernel.as_ref(),
+        let out = measured!(
+            "recurrence",
+            x.device(),
+            delta_recurrence(
+                &q,
+                &k,
+                &v,
+                &g,
+                &beta,
+                control,
+                #[cfg(all(feature = "metal", target_os = "macos"))]
+                self.kernel.as_ref(),
+            )
         )?
         .to_dtype(x.dtype())?;
         let z = self.z.forward(x)?.reshape((t, heads, vd))?;
-        let gated = (rms(&out, &self.norm, c.rms_norm_eps, false)?.to_dtype(DType::F32)?
+        let gated = (self.norm.forward(&out)?.to_dtype(DType::F32)?
             * silu(&z.to_dtype(DType::F32)?)?)?
         .to_dtype(x.dtype())?
         .reshape((t, value))?;
         Ok(self.out.forward(&gated)?)
     }
 }
+pub(super) fn causal_convolution(
+    projected: &Tensor,
+    weights: &Tensor,
+    taps: usize,
+) -> Result<Tensor> {
+    let (t, width) = projected.dims2()?;
+    let mut convolved = Tensor::zeros((t, width), DType::F32, projected.device())?;
+    for tap in 0..taps {
+        let delay = taps - 1 - tap;
+        if delay >= t {
+            continue;
+        }
+        let weight = weights
+            .narrow(2, tap, 1)?
+            .reshape((1, width))?
+            .to_dtype(DType::F32)?;
+        let part = projected.narrow(0, 0, t - delay)?.broadcast_mul(&weight)?;
+        let part = if delay == 0 {
+            part
+        } else {
+            Tensor::cat(
+                &[
+                    Tensor::zeros((delay, width), DType::F32, projected.device())?,
+                    part,
+                ],
+                0,
+            )?
+        };
+        convolved = (convolved + part)?;
+    }
+    Ok(convolved)
+}
+
 pub(super) fn delta_recurrence(
     q: &Tensor,
     k: &Tensor,

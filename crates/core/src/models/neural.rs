@@ -1,7 +1,7 @@
 //! Safe F16 projections through Metal 4 tensor operations on Apple GPU family 10.
 
 use candle_core::{
-    CpuStorage, CustomOp2, DType, Device, Error as CandleError, Layout, MetalStorage,
+    CpuStorage, CustomOp2, DType, Device, Error as CandleError, Layout, MetalDevice, MetalStorage,
     Result as CandleResult, Shape, Tensor, backend::BackendStorage,
 };
 use candle_metal_kernels::metal::ComputePipeline;
@@ -13,8 +13,15 @@ use objc2_metal::{
 use crate::{Error, Result};
 
 #[derive(Debug, Clone)]
-pub(super) struct GemmKernel {
+struct TileKernel {
     pipeline: ComputePipeline,
+    tile_m: usize,
+    tile_n: usize,
+}
+#[derive(Debug, Clone)]
+pub(super) struct GemmKernel {
+    standard: TileKernel,
+    wide: TileKernel,
 }
 impl GemmKernel {
     pub fn new(device: &Device, dtype: DType) -> Result<Option<Self>> {
@@ -29,12 +36,34 @@ impl GemmKernel {
         {
             return Ok(None);
         }
+        Ok(Some(Self {
+            standard: TileKernel::compile(device, 64, 64)?,
+            wide: TileKernel::compile(device, 64, 128)?,
+        }))
+    }
+    pub fn forward(&self, x: &Tensor, weight: &Tensor) -> CandleResult<Tensor> {
+        let (rows, inner) = x.dims2()?;
+        let columns = weight.dim(0)?;
+        let tile = if rows >= 2048 || inner == 12288 || (rows >= 256 && columns <= 8192) {
+            &self.wide
+        } else {
+            &self.standard
+        };
+        tile.forward(x, weight)
+    }
+}
+impl TileKernel {
+    fn compile(device: &MetalDevice, tile_m: usize, tile_n: usize) -> Result<Self> {
         let options = MTLCompileOptions::new();
         options.setLanguageVersion(MTLLanguageVersion::Version4_0);
         options.setMathMode(MTLMathMode::Safe);
+        let source = format!(
+            "#define CLEF_TILE_M {tile_m}\n#define CLEF_TILE_N {tile_n}\n{}",
+            include_str!("neural.metal")
+        );
         let library = device
             .device()
-            .new_library_with_source(include_str!("neural.metal"), Some(&options))
+            .new_library_with_source(&source, Some(&options))
             .map_err(|e| Error::InferenceFailed(format!("compile Metal 4 projection: {e}")))?;
         let function = library
             .get_function("clef_neural_gemm", None)
@@ -50,10 +79,14 @@ impl GemmKernel {
                 "Metal 4 projection thread geometry".into(),
             ));
         }
-        Ok(Some(Self { pipeline }))
+        Ok(Self {
+            pipeline,
+            tile_m,
+            tile_n,
+        })
     }
     pub fn forward(&self, x: &Tensor, weight: &Tensor) -> CandleResult<Tensor> {
-        x.apply_op2_no_bwd(weight, self)?.to_dtype(DType::F16)
+        x.apply_op2_no_bwd(weight, self)
     }
 }
 fn buffer_offset(input: &MetalStorage, layout: &Layout) -> CandleResult<usize> {
@@ -77,7 +110,7 @@ fn buffer_offset(input: &MetalStorage, layout: &Layout) -> CandleResult<usize> {
     }
     Ok(offset)
 }
-impl CustomOp2 for GemmKernel {
+impl CustomOp2 for TileKernel {
     fn name(&self) -> &'static str {
         "clef-metal4-gemm"
     }
@@ -109,7 +142,7 @@ impl CustomOp2 for GemmKernel {
         let offsets = [buffer_offset(x, xl)?, buffer_offset(w, wl)?];
         let count = rows * columns;
         let device = x.device();
-        let output = device.new_buffer(count, DType::F32, "clef_neural_gemm")?;
+        let output = device.new_buffer(count, DType::F16, "clef_neural_gemm")?;
         let guard = device.command_encoder()?;
         let encoder = guard.as_ref();
         encoder.set_compute_pipeline_state(&self.pipeline);
@@ -122,8 +155,8 @@ impl CustomOp2 for GemmKernel {
         }
         encoder.dispatch_thread_groups(
             MTLSize {
-                width: columns.div_ceil(64),
-                height: rows.div_ceil(64),
+                width: columns.div_ceil(self.tile_n),
+                height: rows.div_ceil(self.tile_m),
                 depth: 1,
             },
             MTLSize {
@@ -133,7 +166,7 @@ impl CustomOp2 for GemmKernel {
             },
         );
         Ok((
-            MetalStorage::new(output, device.clone(), count, DType::F32),
+            MetalStorage::new(output, device.clone(), count, DType::F16),
             Shape::from((rows, columns)),
         ))
     }
@@ -145,6 +178,48 @@ mod tests {
 
     use super::*;
     #[test]
+    #[ignore = "requires M5; synchronized full-shape tile sweep"]
+    fn test_should_profile_metal4_projection_tiles() -> Result<()> {
+        let device = Device::new_metal(0)?;
+        let Device::Metal(metal) = &device else {
+            return Err(Error::ArtifactMissing);
+        };
+        for (tile_m, tile_n) in [
+            (32, 64),
+            (32, 128),
+            (64, 64),
+            (64, 128),
+            (128, 64),
+            (128, 128),
+        ] {
+            let kernel = TileKernel::compile(metal, tile_m, tile_n)?;
+            for (n, k) in [
+                (12288, 4096),
+                (4096, 12288),
+                (8192, 4096),
+                (4096, 4096),
+                (1024, 4096),
+            ] {
+                let w = Tensor::full(0.01f32, (n, k), &device)?.to_dtype(DType::F16)?;
+                for rows in [139, 256, 1024, 4096] {
+                    let x = Tensor::full(0.01f32, (rows, k), &device)?.to_dtype(DType::F16)?;
+                    kernel.forward(&x, &w)?;
+                    device.synchronize()?;
+                    let started = Instant::now();
+                    for _ in 0..3 {
+                        kernel.forward(&x, &w)?;
+                        device.synchronize()?;
+                    }
+                    eprintln!(
+                        "TILE {tile_m}/{tile_n} {rows}/{n}/{k}: {:.3} ms",
+                        started.elapsed().as_secs_f64() * 1000. / 3.
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+    #[test]
     #[ignore = "requires Apple GPU family 10 and Metal 4"]
     #[allow(
         clippy::cast_precision_loss,
@@ -154,36 +229,38 @@ mod tests {
         let device = Device::new_metal(0)?;
         let kernel = GemmKernel::new(&device, DType::F16)?
             .ok_or_else(|| Error::UnsupportedCapability("Metal 4 test device".into()))?;
-        for (m, n, k) in [(1, 1, 1), (17, 73, 65), (139, 129, 128), (17, 73, 4096)] {
-            let x = Tensor::from_vec(
-                (0..m * k).map(|i| (i as f32 * 0.013).sin()).collect(),
-                (m, k),
-                &Device::Cpu,
-            )?
-            .to_dtype(DType::F16)?;
-            let w = Tensor::from_vec(
-                (0..n * k)
-                    .map(|i| (i as f32 * 0.029).cos() * 0.015_625)
-                    .collect(),
-                (n, k),
-                &Device::Cpu,
-            )?
-            .to_dtype(DType::F16)?;
-            let expected = x
-                .to_dtype(DType::F32)?
-                .matmul(&w.to_dtype(DType::F32)?.t()?)?
-                .to_dtype(DType::F16)?
-                .to_dtype(DType::F32)?;
-            let actual = kernel
-                .forward(&x.to_device(&device)?, &w.to_device(&device)?)?
-                .to_dtype(DType::F32)?
-                .to_device(&Device::Cpu)?;
-            let error = (&actual - expected)?
-                .abs()?
-                .flatten_all()?
-                .max(0)?
-                .to_scalar::<f32>()?;
-            assert!(error < 0.001, "Metal 4 GEMM {m}/{n}/{k}: error {error}");
+        for tile in [&kernel.standard, &kernel.wide] {
+            for (m, n, k) in [(1, 1, 1), (17, 73, 65), (139, 129, 128), (17, 73, 4096)] {
+                let x = Tensor::from_vec(
+                    (0..m * k).map(|i| (i as f32 * 0.013).sin()).collect(),
+                    (m, k),
+                    &Device::Cpu,
+                )?
+                .to_dtype(DType::F16)?;
+                let w = Tensor::from_vec(
+                    (0..n * k)
+                        .map(|i| (i as f32 * 0.029).cos() * 0.015_625)
+                        .collect(),
+                    (n, k),
+                    &Device::Cpu,
+                )?
+                .to_dtype(DType::F16)?;
+                let expected = x
+                    .to_dtype(DType::F32)?
+                    .matmul(&w.to_dtype(DType::F32)?.t()?)?
+                    .to_dtype(DType::F16)?
+                    .to_dtype(DType::F32)?;
+                let actual = tile
+                    .forward(&x.to_device(&device)?, &w.to_device(&device)?)?
+                    .to_dtype(DType::F32)?
+                    .to_device(&Device::Cpu)?;
+                let error = (&actual - expected)?
+                    .abs()?
+                    .flatten_all()?
+                    .max(0)?
+                    .to_scalar::<f32>()?;
+                assert!(error < 0.001, "Metal 4 GEMM {m}/{n}/{k}: error {error}");
+            }
         }
         let w = Tensor::full(0.01f32, (12288, 4096), &device)?.to_dtype(DType::F16)?;
         for rows in [139, 256, 1024] {

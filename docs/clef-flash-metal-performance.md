@@ -8,7 +8,9 @@ One 128-thread group contains four independent SIMD groups, each owning one valu
 
 The eight full-attention layers use GQA directly, keeping four KV heads rather than copying them to 16. The pinned upstream SDPA shader is instantiated with 16-query/8-key tiles: 28,928 shared bytes fit the Apple GPU limit, whereas the default F32 width-256 tile needs 53,760 bytes and fails pipeline creation. Classifier and vision attention retain the qualified tensor graph. Pipeline creation happens during model loading, and inference adds no host readback or synchronization.
 
-On Apple GPU family 10, large F16 backbone projections use a shared Metal 4 MPP pipeline with 64×64 tiles, F16 inputs and F32 accumulation. Relaxed precision is disabled. Complete tiles use static extents; partial tiles use checked tensor bounds. The F32 result is converted to half on GPU before the existing normalization/residual graph. Tiny decay/beta projections and older GPUs retain Candle’s Metal GEMM. Classifier and vision projections remain on their qualified F32 path.
+On Apple GPU family 10, large F16 backbone projections use shared Metal 4 MPP pipelines with shape-selected 64×64/64×128 tiles, F16 inputs and F32 accumulation. Relaxed precision is disabled. Complete tiles use static extents; partial tiles use checked tensor bounds. The cooperative F32 result is converted to half and stored directly, avoiding an intermediate buffer and conversion dispatch. Tiny decay/beta projections and older GPUs retain Candle’s Metal GEMM. Classifier and vision projections remain on their qualified F32 path.
+
+Backbone RMSNorm now uses one F32 reduction/scaling kernel, preserving the reference reduction tree and separate square-root/reciprocal rounding before the existing dtype boundary. Offset weights are computed once at load. Four causal convolution taps use one kernel in the original accumulation order, with SiLU still applied by its qualified operation. Both pointwise pipelines are shared across layers. These optimizations apply to both Metal precisions; the CPU equations remain unchanged.
 
 Rust dispatch validates shapes, dtype, contiguous byte ranges and integer conversions before submitting work. The safe Candle wrappers own allocation, command lifetime and hazard tracking; this project adds no unsafe Rust. The existing owner-thread cancellation, deadline, recovery and shutdown behavior remains in effect.
 
@@ -18,7 +20,10 @@ Rust dispatch validates shapes, dtype, contiguous byte ranges and integer conver
 make bench-mbp CLEF_RELEASE_CACHE=/path/to/model-cache
 make profile-metal CLEF_RELEASE_CACHE=/path/to/model-cache
 make profile-metal-kernels
+make profile-metal-tiles
+make profile-metal-backbone
 make verify-metal-neural # M5 only
+make verify-metal-pointwise
 make verify verify-metal verify-benchmark
 make verify-metal-release verify-metal-media verify-metal-serving PYTHON=.venv-reference/bin/python
 ```
@@ -29,7 +34,7 @@ The previous [CPU/Metal campaign](benchmarks/flash-cpu-metal/report.md) remains 
 
 Implementation rationale and numerical pitfalls are recorded in [the research evidence](research/clef-metal-performance-research.md) and [design contract](../specs/clef-metal-performance-design.md).
 
-## Measured results
+## Previous M5 campaign
 
 The final sequential campaign used the committed `988691f` implementation on the 64 GiB M5 Pro. Both precisions completed all 79 direct samples and 54 managed admission attempts. Every case has one excluded warmup. The earlier fused-only campaign used `5df02eb`; the original baseline used the pre-optimization graph. Raw reports retain executable SHA-256, configuration SHA-256, exact model revision, environment, individual samples and process metrics. The dirty-tree flags include documentation and measurement artifacts; the measured Rust source corresponds to the stated commits.
 

@@ -1336,6 +1336,32 @@ mod release_tests {
     use super::*;
     use crate::{artifacts::ArtifactStore, types::ModelPreset};
     #[tokio::test]
+    #[ignore = "requires pinned Flash weights; synchronized diagnostics, not normal latency"]
+    async fn test_should_profile_flash_backbone_categories() -> Result<()> {
+        let root = std::env::var_os("CLEF_RELEASE_CACHE").ok_or(Error::ArtifactMissing)?;
+        let store = ArtifactStore::new(root.into(), 85_899_345_920)?;
+        let snapshot = store.open(ModelPreset::ClefFlash).await?;
+        let profile = release_profile(Modality::Text)?;
+        task::spawn_blocking(move || {
+            let engine = DirectEngine::load(snapshot, profile)?;
+            let control = Control {
+                cancel: Arc::new(AtomicBool::new(false)),
+                deadline: Instant::now() + Duration::from_secs(300),
+            };
+            for tokens in [139, 256, 1024, 4096] {
+                let ids = vec![42; tokens];
+                engine.backbone.forward(&ids, &control)?;
+                let (_, timings) = crate::models::diagnostics::capture(|| {
+                    engine.backbone.forward(&ids, &control)
+                })?;
+                eprintln!("BACKBONE {tokens}: {}", serde_json::to_string(&timings)?);
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|_| Error::WorkerUnavailable)?
+    }
+    #[tokio::test]
     #[ignore = "requires the pinned Flash cache and 100-record Python oracle"]
     async fn test_should_match_full_flash_python_probabilities() -> Result<()> {
         flash_parity(100, Modality::Text).await
