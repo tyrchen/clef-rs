@@ -53,6 +53,31 @@ impl Projections {
             kernel: self.kernel.clone(),
         })
     }
+    /// Load two `[output, input]` projections and fuse them into a single
+    /// `[2 * output, input]` projection, so one GEMM computes both and the
+    /// input is read once.
+    pub fn load_fused(
+        &self,
+        weights: &mut Weights,
+        first: &str,
+        second: &str,
+        input: usize,
+        output: usize,
+    ) -> Result<Projection> {
+        let a = weights.take(&format!("{first}.weight"), &[output, input])?;
+        let b = weights.take(&format!("{second}.weight"), &[output, input])?;
+        let fused = Tensor::cat(&[&a, &b], 0)?;
+        if fused.dtype() != self.dtype {
+            return Err(Error::InferenceFailed(
+                "backbone projection dtype mismatch".into(),
+            ));
+        }
+        Ok(Projection {
+            linear: Linear::new(fused, None),
+            #[cfg(all(feature = "metal", target_os = "macos"))]
+            kernel: self.kernel.clone(),
+        })
+    }
 }
 #[derive(Debug)]
 pub(super) struct Projection {

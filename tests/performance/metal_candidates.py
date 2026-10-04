@@ -259,7 +259,7 @@ def main():
         "schemaVersion": 1, "measuredAt": datetime.now(timezone.utc).isoformat(),
         "purpose": "Synthetic operator exploration; no CLEF model or probability qualification",
         "sourceCommit": subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], text=True, timeout=10
+            ["git", "rev-parse", "HEAD"], text=True, timeout=10, cwd=ROOT
         ).strip(),
         "scriptSha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "mlxVersion": mx.__version__, "device": mx.device_info(),

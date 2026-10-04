@@ -31,6 +31,9 @@ fn rms_inner(x: &Tensor, weight: &Tensor, eps: f64, offset: bool) -> Result<Tens
         .to_dtype(x.dtype())?)
 }
 pub(crate) fn normalize(x: &Tensor, eps: f64) -> Result<Tensor> {
+    measured!("normalization", x.device(), normalize_inner(x, eps))
+}
+fn normalize_inner(x: &Tensor, eps: f64) -> Result<Tensor> {
     let f = x.to_dtype(DType::F32)?;
     let n = f
         .sqr()?
@@ -59,6 +62,11 @@ impl Norm {
     }
 }
 /// Queries, keys, values have [heads, tokens, width]. Online accumulation is F32.
+///
+/// When `causal` and the query block is shorter than the key block (`qn < kn`),
+/// queries are positioned at the tail of the key sequence: query `i` may attend
+/// to keys `j <= kn - qn + i`. This is the decode/KV-cache calling convention;
+/// a full square causal mask needs `qn == kn`.
 pub(crate) fn attention(
     q: &Tensor,
     k: &Tensor,
@@ -69,9 +77,6 @@ pub(crate) fn attention(
     let (heads, qn, width) = q.dims3()?;
     let kn = k.dim(1)?;
     let vw = v.dim(2)?;
-    let q = q.to_dtype(DType::F32)?;
-    let k = k.to_dtype(DType::F32)?;
-    let v = v.to_dtype(DType::F32)?;
     let kv_heads = k.dim(0)?;
     if heads == 0
         || kv_heads == 0
@@ -86,70 +91,93 @@ pub(crate) fn attention(
     {
         return Err(Error::InvalidRequest("attention tensor shapes".into()));
     }
-    // The portable reference expands grouped KV heads before tiled attention.
-    let (k, v) = if heads == kv_heads {
-        (k, v)
-    } else {
-        let ids: Vec<u32> = (0..heads)
-            .map(|i| (i / (heads / kv_heads)) as u32)
-            .collect();
-        let ids = Tensor::new(ids, q.device())?;
-        (k.index_select(&ids, 0)?, v.index_select(&ids, 0)?)
-    };
+    // `kn - qn` cannot underflow: the guard above rejects `causal && qn > kn`,
+    // and the offset is only read on the causal path.
+    debug_assert!(!causal || qn <= kn);
+    let groups = heads / kv_heads;
+    let offset = if causal { kn - qn } else { 0 };
     let mut outputs = Vec::new();
     for qs in (0..qn).step_by(128) {
         control.check()?;
         let count = (qn - qs).min(128);
-        let query = q.narrow(1, qs, count)?.contiguous()?;
-        let mut maximum = Tensor::full(f32::NEG_INFINITY, (heads, count, 1), q.device())?;
-        let mut denominator = Tensor::zeros((heads, count, 1), DType::F32, q.device())?;
-        let mut accumulator = Tensor::zeros((heads, count, vw), DType::F32, q.device())?;
-        let offset = if causal { kn - qn } else { 0 };
-        for ks in (0..kn).step_by(256) {
-            control.check()?;
-            if causal && ks >= offset + qs + count {
-                break;
-            }
-            let keys = (kn - ks).min(256);
-            let mut scores = (query
-                .matmul(&k.narrow(1, ks, keys)?.transpose(1, 2)?.contiguous()?)?
-                / (width as f64).sqrt())?;
-            if causal {
-                let mask: Vec<f32> = (0..count)
-                    .flat_map(|i| {
-                        (0..keys).map(move |j| {
-                            if ks + j > offset + qs + i {
-                                f32::NEG_INFINITY
-                            } else {
-                                0.0
-                            }
+        // Convert only the resident query tile; the full Q never materializes
+        // in F32.
+        let query = q.narrow(1, qs, count)?.to_dtype(DType::F32)?.contiguous()?;
+        let mut group_outputs = Vec::with_capacity(kv_heads);
+        // Heads sharing one KV head are processed as a group on narrow views
+        // of the original K/V: the cache is never expanded to `heads`.
+        for g in 0..kv_heads {
+            let queries = query.narrow(0, g * groups, groups)?;
+            let mut maximum = Tensor::full(f32::NEG_INFINITY, (groups, count, 1), q.device())?;
+            let mut denominator = Tensor::zeros((groups, count, 1), DType::F32, q.device())?;
+            let mut accumulator = Tensor::zeros((groups, count, vw), DType::F32, q.device())?;
+            for ks in (0..kn).step_by(256) {
+                control.check()?;
+                if causal && ks >= offset + qs + count {
+                    break;
+                }
+                let keys = (kn - ks).min(256);
+                // Convert only the resident key/value tiles.
+                let keys_t = k
+                    .narrow(0, g, 1)?
+                    .narrow(1, ks, keys)?
+                    .to_dtype(DType::F32)?;
+                let values_t = v
+                    .narrow(0, g, 1)?
+                    .narrow(1, ks, keys)?
+                    .to_dtype(DType::F32)?;
+                let mut scores = (queries
+                    .broadcast_matmul(&keys_t.transpose(1, 2)?.contiguous()?)?
+                    / (width as f64).sqrt())?;
+                // At most one key tile per query tile straddles the causal
+                // boundary; earlier tiles are fully visible and need no mask.
+                if causal && ks + keys > offset + qs + 1 {
+                    let mask: Vec<f32> = (0..count)
+                        .flat_map(|i| {
+                            (0..keys).map(move |j| {
+                                if ks + j > offset + qs + i {
+                                    f32::NEG_INFINITY
+                                } else {
+                                    0.0
+                                }
+                            })
                         })
-                    })
-                    .collect();
-                scores =
-                    scores.broadcast_add(&Tensor::from_vec(mask, (1, count, keys), q.device())?)?;
+                        .collect();
+                    scores = scores.broadcast_add(&Tensor::from_vec(
+                        mask,
+                        (1, count, keys),
+                        q.device(),
+                    )?)?;
+                }
+                let new_maximum = maximum.maximum(&scores.max_keepdim(2)?)?;
+                let rescale = (&maximum - &new_maximum)?.exp()?;
+                let probabilities = scores.broadcast_sub(&new_maximum)?.exp()?;
+                accumulator = (accumulator.broadcast_mul(&rescale)?
+                    + probabilities.broadcast_matmul(&values_t.contiguous()?)?)?;
+                denominator =
+                    (denominator.broadcast_mul(&rescale)? + probabilities.sum_keepdim(2)?)?;
+                maximum = new_maximum;
             }
-            let new_maximum = maximum.maximum(&scores.max_keepdim(2)?)?;
-            let rescale = (&maximum - &new_maximum)?.exp()?;
-            let probabilities = scores.broadcast_sub(&new_maximum)?.exp()?;
-            accumulator = (accumulator.broadcast_mul(&rescale)?
-                + probabilities.matmul(&v.narrow(1, ks, keys)?.contiguous()?)?)?;
-            denominator = (denominator.broadcast_mul(&rescale)? + probabilities.sum_keepdim(2)?)?;
-            maximum = new_maximum;
+            group_outputs.push(accumulator.broadcast_div(&denominator)?);
         }
-        outputs.push(accumulator.broadcast_div(&denominator)?);
+        outputs.push(Tensor::cat(&group_outputs, 0)?);
     }
     Ok(Tensor::cat(&outputs, 1)?)
 }
+/// Rotary embedding with per-axis positions (mRoPE).
+///
+/// `inv_freq[i]` is the inverse frequency for pair `i`
+/// (`theta.powf(-(2 * i) / dim)`); it depends only on the model config, so it
+/// is precomputed once at load instead of once per token.
 pub(crate) fn rotary(
     x: &Tensor,
     positions: &[[usize; 3]],
-    dim: usize,
-    theta: f64,
+    inv_freq: &[f32],
     sections: [usize; 3],
 ) -> Result<Tensor> {
     let (tokens, _, width) = x.dims3()?;
-    let half = dim / 2;
+    let half = inv_freq.len();
+    let dim = half * 2;
     let mut angles = Vec::with_capacity(tokens * dim);
     for p in positions {
         let row: Vec<f32> = (0..half)
@@ -161,8 +189,7 @@ pub(crate) fn rotary(
                 } else {
                     0
                 };
-                p.get(axis).copied().unwrap_or_default() as f32
-                    * theta.powf(-((2 * i) as f64) / dim as f64) as f32
+                p.get(axis).copied().unwrap_or_default() as f32 * inv_freq[i]
             })
             .collect();
         angles.extend(row.iter().copied());
@@ -197,24 +224,24 @@ pub(crate) struct MultiAttention {
 impl MultiAttention {
     pub fn forward(&self, queries: &Tensor, memory: &Tensor, control: &Control) -> Result<Tensor> {
         let width = queries.dim(1)?;
+        // No `.contiguous()` after the transposes: `attention` converts each
+        // tile itself, so materializing the full [heads, tokens, width]
+        // tensors here would only add a pass.
         let q = self
             .q
             .forward(queries)?
             .reshape((queries.dim(0)?, self.heads, width / self.heads))?
-            .transpose(0, 1)?
-            .contiguous()?;
+            .transpose(0, 1)?;
         let k = self
             .k
             .forward(memory)?
             .reshape((memory.dim(0)?, self.heads, width / self.heads))?
-            .transpose(0, 1)?
-            .contiguous()?;
+            .transpose(0, 1)?;
         let v = self
             .v
             .forward(memory)?
             .reshape((memory.dim(0)?, self.heads, width / self.heads))?
-            .transpose(0, 1)?
-            .contiguous()?;
+            .transpose(0, 1)?;
         let out = attention(&q, &k, &v, false, control)?
             .to_dtype(queries.dtype())?
             .transpose(0, 1)?
@@ -259,6 +286,56 @@ mod tests {
             .max(0)?
             .to_scalar::<f32>()?;
         assert!(error < 1e-5, "error {error}");
+        Ok(())
+    }
+    #[test]
+    fn test_should_match_dense_attention_with_grouped_query_heads() -> Result<()> {
+        let d = Device::Cpu;
+        let (heads, kv_heads, tokens, width) = (4, 2, 300, 8);
+        let q = Tensor::from_vec(
+            (0..heads * tokens * width)
+                .map(|i| (i as f32 * 0.013).sin())
+                .collect(),
+            (heads, tokens, width),
+            &d,
+        )?;
+        let kv = Tensor::from_vec(
+            (0..kv_heads * tokens * width)
+                .map(|i| (i as f32 * 0.031).cos())
+                .collect(),
+            (kv_heads, tokens, width),
+            &d,
+        )?;
+        let c = Control {
+            cancel: Arc::new(AtomicBool::new(false)),
+            deadline: Instant::now() + Duration::from_secs(60),
+        };
+        for causal in [false, true] {
+            let tiled = attention(&q, &kv, &kv, causal, &c)?;
+            // Dense reference: expand the grouped heads, then plain softmax.
+            let groups = heads / kv_heads;
+            let ids: Vec<u32> = (0..heads).map(|i| (i / groups) as u32).collect();
+            let ids = Tensor::new(ids, &d)?;
+            let k = kv.index_select(&ids, 0)?;
+            let v = kv.index_select(&ids, 0)?;
+            let mut scores =
+                (q.matmul(&k.transpose(1, 2)?.contiguous()?)? / (width as f64).sqrt())?;
+            if causal {
+                let mask: Vec<f32> = (0..tokens)
+                    .flat_map(|i| {
+                        (0..tokens).map(move |j| if j > i { f32::NEG_INFINITY } else { 0.0 })
+                    })
+                    .collect();
+                scores = scores.broadcast_add(&Tensor::from_vec(mask, (1, tokens, tokens), &d)?)?;
+            }
+            let dense = candle_nn::ops::softmax_last_dim(&scores)?.matmul(&v)?;
+            let error = (&tiled - &dense)?
+                .abs()?
+                .flatten_all()?
+                .max(0)?
+                .to_scalar::<f32>()?;
+            assert!(error < 1e-4, "causal {causal}: error {error}");
+        }
         Ok(())
     }
 }

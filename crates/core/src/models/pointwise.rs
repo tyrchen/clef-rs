@@ -7,7 +7,7 @@ use candle_core::{
 use candle_metal_kernels::metal::ComputePipeline;
 use objc2_metal::{MTLComputePipelineState, MTLSize};
 
-use super::metal::checked_f32_buffer;
+use super::{MAX_SEQUENCE_TOKENS, metal::checked_f32_buffer};
 use crate::{Error, Result};
 
 #[derive(Debug, Clone)]
@@ -151,7 +151,7 @@ impl CustomOp2 for ConvKernel {
         wl: &Layout,
     ) -> CandleResult<(MetalStorage, Shape)> {
         let (tokens, width) = xl.shape().dims2()?;
-        if !(1..=4096).contains(&tokens)
+        if !(1..=MAX_SEQUENCE_TOKENS).contains(&tokens)
             || !(1..=8192).contains(&width)
             || wl.shape().dims3()? != (width, 1, 4)
         {
@@ -239,7 +239,7 @@ impl CustomOp3 for DeltaPrepareKernel {
         bl: &Layout,
     ) -> CandleResult<(MetalStorage, Shape)> {
         let (tokens, width) = ml.shape().dims2()?;
-        if !(1..=4096).contains(&tokens)
+        if !(1..=MAX_SEQUENCE_TOKENS).contains(&tokens)
             || width != 8192
             || gl.dims() != [tokens, 32]
             || bl.dims() != gl.dims()

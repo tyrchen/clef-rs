@@ -1,9 +1,20 @@
 #include <metal_stdlib>
 using namespace metal;
+// Same intent as delta.metal: disabling FP contraction and reassociation
+// keeps the kernel's arithmetic rounded exactly as written, so numerics stay
+// predictable across compiler versions. The RMS kernel is not bit-identical
+// with the portable reference (different reduction order); it only needs to
+// match within the test tolerance.
 #pragma clang fp contract(off)
 #pragma clang fp reassociate(off)
 
 // Preserve the reference loader, block tree, mean scaling, sqrt and reciprocal.
+//
+// Preconditions (enforced on the Rust side): `width` is a power of two in
+// 1..=4096, and the threadgroup holds `(width / 2).max(1).next_power_of_two()`
+// threads, so the thread count is always a power of two as well. Small widths
+// degrade gracefully: with fewer than 32 threads only the first SIMD group is
+// partially filled and `simd_sum` covers exactly the active lanes.
 kernel void clef_rms(
     device const float* input [[buffer(0)]],
     device const float* weight [[buffer(1)]],
@@ -17,19 +28,29 @@ kernel void clef_rms(
     threadgroup float inverse;
     uint base = row * width;
     float sum = 0.0f;
-    for (uint i = lane; i < width; i += threads) {
+    // Vector loads: four consecutive elements per iteration. The compiler
+    // coalesces these into 128-bit loads; the tail loop covers widths that
+    // are not a multiple of four.
+    uint vec_width = width / 4;
+    for (uint i = lane; i < vec_width; i += threads) {
+        float4 values = float4(
+            input[base + 4 * i], input[base + 4 * i + 1],
+            input[base + 4 * i + 2], input[base + 4 * i + 3]);
+        sum += values.x * values.x + values.y * values.y
+             + values.z * values.z + values.w * values.w;
+    }
+    for (uint i = vec_width * 4 + lane; i < width; i += threads) {
         float value = input[base + i];
         sum += value * value;
     }
     partial[lane] = sum;
     threadgroup_barrier(mem_flags::mem_threadgroup);
-    for (uint step = threads / 2; step >= 64; step /= 2) {
+    for (uint step = threads / 2; step >= 32; step /= 2) {
         if (lane < step) partial[lane] += partial[lane + step];
         threadgroup_barrier(mem_flags::mem_threadgroup);
     }
     if (lane < 32) {
-        float value = threads >= 64 ? partial[lane] + partial[lane + 32] : sum;
-        float total = simd_sum(value);
+        float total = simd_sum(partial[lane]);
         if (lane == 0) {
             volatile float root = sqrt(total * (1.0f / float(width)) + eps);
             inverse = 1.0f / root;

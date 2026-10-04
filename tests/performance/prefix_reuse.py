@@ -16,28 +16,34 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def check(condition, message):
+    if not condition:
+        raise ValueError(f"invalid reuse report: {message}")
+
+
 def validate_reuse(report, profile):
     device, dtype = profile.split(":")
-    assert report["complete"] and report["schemaVersion"] == 1
-    assert report["profile"] == f"{device}:0:{dtype}:text:4096"
-    assert report["revision"] == "17f0b0ad64efb65d273590632833508766b2aae6"
+    check(report["complete"] and report["schemaVersion"] == 1, "incomplete report or schema mismatch")
+    check(report["profile"] == f"{device}:0:{dtype}:text:4096", f"profile mismatch: {report['profile']}")
+    check(report["revision"] == "17f0b0ad64efb65d273590632833508766b2aae6", f"revision mismatch: {report['revision']}")
     for case in report["cases"]:
+        name = case["workload"]["name"]
         for mode in ("uncached", "capture", "hit"):
             samples, summary = case[mode + "Ms"], case[mode]
-            assert len(samples) == summary["count"] == case["workload"]["samples"]
-            assert all(math.isfinite(n) and n > 0 for n in samples)
-            assert math.isclose(sum(samples)/len(samples), summary["meanMs"], rel_tol=1e-9)
-            assert summary["minMs"] <= summary["p50Ms"] <= summary["p95Ms"] <= summary["p99Ms"] <= summary["maxMs"]
-        assert 0 <= case["maximumProbabilityDrift"] <= 1e-3
-        assert 0 <= case["meanProbabilityDrift"] <= 1e-4
-        assert case["meanProbabilityDrift"] <= case["maximumProbabilityDrift"]
-        assert case["reusedTokens"] == case["stats"]["reusedTokens"]
-        assert case["stats"]["bytes"] <= 512 * 1024 * 1024
+            check(len(samples) == summary["count"] == case["workload"]["samples"], f"{name}/{mode}: sample count mismatch")
+            check(all(math.isfinite(n) and n > 0 for n in samples), f"{name}/{mode}: non-positive sample")
+            check(math.isclose(sum(samples)/len(samples), summary["meanMs"], rel_tol=1e-9), f"{name}/{mode}: mean mismatch")
+            check(summary["minMs"] <= summary["p50Ms"] <= summary["p95Ms"] <= summary["p99Ms"] <= summary["maxMs"], f"{name}/{mode}: percentile order violated")
+        check(0 <= case["maximumProbabilityDrift"] <= 1e-3, f"{name}: max drift out of range")
+        check(0 <= case["meanProbabilityDrift"] <= 1e-4, f"{name}: mean drift out of range")
+        check(case["meanProbabilityDrift"] <= case["maximumProbabilityDrift"], f"{name}: mean drift exceeds max drift")
+        check(case["reusedTokens"] == case["stats"]["reusedTokens"], f"{name}: reused token count mismatch")
+        check(case["stats"]["bytes"] <= 512 * 1024 * 1024, f"{name}: cache bytes exceed budget")
         if case["workload"]["tokens"] >= 1024:
-            assert case["stats"]["hits"] == 1 and case["stats"]["captures"] == 1
-            assert 512 <= case["reusedTokens"] < case["workload"]["tokens"]
+            check(case["stats"]["hits"] == 1 and case["stats"]["captures"] == 1, f"{name}: expected one hit and one capture")
+            check(512 <= case["reusedTokens"] < case["workload"]["tokens"], f"{name}: reused tokens out of range")
         else:
-            assert case["reusedTokens"] == 0
+            check(case["reusedTokens"] == 0, f"{name}: short input should bypass caching")
 
 
 def render(directory, metadata):
@@ -58,13 +64,13 @@ def render(directory, metadata):
         if baseline_path.exists():
             baseline = json.loads(baseline_path.read_text())
             validate(baseline, profile)
-            assert baseline["manifestDigest"] == current["manifestDigest"]
+            check(baseline["manifestDigest"] == current["manifestDigest"], "baseline manifest digest mismatch")
             old = {c["workload"]["name"]: c for c in baseline["cases"]}
         for c in current["cases"]:
             workload = c["workload"]
             before = old.get(workload["name"])
             if before:
-                assert before["workload"] == workload
+                check(before["workload"] == workload, "baseline workload mismatch")
             old_ms = f"{before['latency']['meanMs']:.3f}" if before else "—"
             cold, capture, hit = (c[m]["meanMs"] for m in ("uncached", "capture", "hit"))
             lines.append(f"| {profile} | {workload['tokens']} / {workload['fields']} | {workload['samples']} | {c['reusedTokens']} | "
