@@ -23,7 +23,7 @@ pub(crate) struct Weights {
     tensors: HashMap<String, Tensor>,
 }
 impl Weights {
-    pub fn load(
+    pub(crate) fn load(
         snapshot: &VerifiedSnapshot,
         device: &Device,
         dtype: DType,
@@ -122,7 +122,7 @@ impl Weights {
                     .ok_or(Error::InsufficientMemory)
             })
     }
-    pub fn take(&mut self, name: &str, shape: &[usize]) -> Result<Tensor> {
+    pub(crate) fn take(&mut self, name: &str, shape: &[usize]) -> Result<Tensor> {
         let tensor = self
             .tensors
             .remove(name)
@@ -132,7 +132,7 @@ impl Weights {
         }
         Ok(tensor)
     }
-    pub fn linear(
+    pub(crate) fn linear(
         &mut self,
         prefix: &str,
         input: usize,
@@ -147,14 +147,14 @@ impl Weights {
         };
         Ok(Linear::new(weight, bias))
     }
-    pub fn norm(&mut self, prefix: &str, width: usize, eps: f64) -> Result<Norm> {
+    pub(crate) fn norm(&mut self, prefix: &str, width: usize, eps: f64) -> Result<Norm> {
         Ok(Norm {
             weight: self.take(&format!("{prefix}.weight"), &[width])?,
             bias: self.take(&format!("{prefix}.bias"), &[width])?,
             eps,
         })
     }
-    pub fn scalar(&mut self, name: &str) -> Result<f64> {
+    pub(crate) fn scalar(&mut self, name: &str) -> Result<f64> {
         let v = self
             .take(name, &[])?
             .to_dtype(DType::F32)?
@@ -164,7 +164,7 @@ impl Weights {
         }
         Ok(f64::from(v))
     }
-    pub fn attention(
+    pub(crate) fn attention(
         &mut self,
         prefix: &str,
         width: usize,
@@ -186,7 +186,7 @@ impl Weights {
             heads,
         })
     }
-    pub fn finish(self) -> Result<()> {
+    pub(crate) fn finish(self) -> Result<()> {
         if !self.tensors.is_empty() {
             return Err(Error::IntegrityMismatch("unconsumed model tensors".into()));
         }

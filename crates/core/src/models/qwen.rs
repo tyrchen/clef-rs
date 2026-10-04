@@ -18,7 +18,7 @@ use candle_nn::{
 use serde::Deserialize;
 
 use super::{
-    Control,
+    Control, MAX_SEQUENCE_TOKENS,
     normalization::{Norms, Rms},
     ops::{attention, rotary},
     projection::{Projection, Projections},
@@ -111,6 +111,8 @@ struct FullAttention {
     out: Projection,
     qn: Rms,
     kn: Rms,
+    /// Rotary inverse frequencies, precomputed once at load.
+    inv_freq: Vec<f32>,
 }
 #[derive(Debug)]
 struct Delta {
@@ -120,8 +122,8 @@ struct Delta {
     kernel: Option<DeltaKernel>,
     qkv: Projection,
     z: Projection,
-    a: Projection,
-    b: Projection,
+    /// Fused `[h -> 2 * heads]` decay/beta projection; split after the GEMM.
+    ab: Projection,
     out: Projection,
     conv: Tensor,
     dt: Tensor,
@@ -275,15 +277,20 @@ impl Backbone {
             config: c,
         })
     }
-    pub fn prefix_bytes(&self, tokens: usize) -> Result<u64> {
+    /// Upper-bound estimate of the device bytes needed to retain a
+    /// `tokens`-long prefix, for capacity planning.
+    ///
+    /// The result is conservative, not exact: callers must treat it as an
+    /// upper bound (short prefixes are rounded up), never as a precise size.
+    pub fn prefix_bytes_upper_bound(&self, tokens: usize) -> Result<u64> {
         let c = &self.config;
         let scalar = self.embeddings.dtype().size_in_bytes();
-        let mut elements = tokens
+        let mut bytes = tokens
             .checked_mul(c.hidden_size)
             .and_then(|n| n.checked_mul(4))
             .ok_or(Error::InsufficientMemory)?;
         for layer in &self.layers {
-            let bytes = match layer.mixer {
+            let layer_bytes = match layer.mixer {
                 Mixer::Full(_) => tokens
                     .checked_mul(c.num_key_value_heads)
                     .and_then(|n| n.checked_mul(c.head_dim))
@@ -302,11 +309,11 @@ impl Backbone {
                     .and_then(|n| n.checked_mul(4)),
             }
             .ok_or(Error::InsufficientMemory)?;
-            elements = elements
-                .checked_add(bytes)
+            bytes = bytes
+                .checked_add(layer_bytes)
                 .ok_or(Error::InsufficientMemory)?;
         }
-        u64::try_from(elements).map_err(|_| Error::InsufficientMemory)
+        u64::try_from(bytes).map_err(|_| Error::InsufficientMemory)
     }
     pub fn forward(&self, ids: &[u32], control: &Control) -> Result<Tensor> {
         control.check()?;
@@ -330,10 +337,33 @@ impl Backbone {
         positions: &[[usize; 3]],
         control: &Control,
     ) -> Result<Tensor> {
+        if positions.len() != hidden.dim(0)? {
+            return Err(Error::InvalidRequest(
+                "positions/hidden length mismatch".into(),
+            ));
+        }
         Ok(self
             .prefill_embedded(hidden, positions, control, None, None)?
             .0)
     }
+    /// Run a prefill over `ids`, optionally resuming from and extending a
+    /// retained prefix.
+    ///
+    /// `initial` resumes from a previously captured [`PrefixState`]; positions
+    /// continue after its tokens. `capture` retains the state after the first
+    /// `capture` tokens *of this call* and must be a strict prefix of `ids`
+    /// (`0 < capture < ids.len()`); capturing the whole request is rejected
+    /// because there would be no suffix left to score.
+    ///
+    /// Passing both extends a retained prefix: the returned state covers the
+    /// initial tokens plus the first `capture` new tokens, so a cache hit can
+    /// lengthen the entry it came from instead of recomputing the suffix from
+    /// the old boundary every time.
+    ///
+    /// # Errors
+    /// Rejects empty inputs, sequences longer than [`MAX_SEQUENCE_TOKENS`],
+    /// out-of-vocabulary ids, degenerate captures, and layer-count mismatches
+    /// between `initial` and this backbone.
     pub fn prefill(
         &self,
         ids: &[u32],
@@ -347,10 +377,12 @@ impl Backbone {
             .transpose()?
             .unwrap_or_default();
         if ids.is_empty()
-            || ids.len().checked_add(offset).is_none_or(|n| n > 4096)
+            || ids
+                .len()
+                .checked_add(offset)
+                .is_none_or(|n| n > MAX_SEQUENCE_TOKENS)
             || ids.iter().any(|id| *id as usize >= self.config.vocab_size)
             || capture.is_some_and(|n| n == 0 || n >= ids.len())
-            || (initial.is_some() && capture.is_some())
             || initial.is_some_and(|state| state.layers.len() != self.layers.len())
         {
             return Err(Error::InvalidRequest(
@@ -409,9 +441,17 @@ impl Backbone {
             hidden = (hidden + ff.to_dtype(DType::F32)?)?;
         }
         let hidden = self.norm.forward(&hidden)?;
+        // With `initial`, the retained state extends the previous prefix: the
+        // hidden part covers `[0, offset + tokens)` and each layer state was
+        // already extended by its mixer forward.
         let saved = if let Some(tokens) = capture {
+            let prefix = hidden.narrow(0, 0, tokens)?;
+            let hidden = match initial {
+                Some(initial) => Tensor::cat(&[&initial.hidden, &prefix], 0)?,
+                None => prefix,
+            };
             Some(PrefixState {
-                hidden: retain(&hidden.narrow(0, 0, tokens)?)?,
+                hidden: retain(&hidden)?,
                 layers: states,
             })
         } else {
@@ -437,6 +477,14 @@ impl FullAttention {
         let h = c.hidden_size;
         let n = c.num_attention_heads * c.head_dim;
         let kv = c.num_key_value_heads * c.head_dim;
+        let rotary_dim = (c.head_dim as f64 * c.rope_parameters.partial_rotary_factor) as usize;
+        let inv_freq: Vec<f32> = (0..rotary_dim / 2)
+            .map(|i| {
+                c.rope_parameters
+                    .rope_theta
+                    .powf(-((2 * i) as f64) / rotary_dim as f64) as f32
+            })
+            .collect();
         Ok(Self {
             #[cfg(all(feature = "metal", target_os = "macos"))]
             kernel,
@@ -446,6 +494,7 @@ impl FullAttention {
             out: projections.load(w, &format!("{p}.self_attn.o_proj"), n, h, false)?,
             qn: norms.load(w, &format!("{p}.self_attn.q_norm.weight"), c.head_dim, true)?,
             kn: norms.load(w, &format!("{p}.self_attn.k_norm.weight"), c.head_dim, true)?,
+            inv_freq,
         })
     }
     fn forward(
@@ -469,12 +518,10 @@ impl FullAttention {
         let k = self
             .kn
             .forward(&self.k.forward(x)?.reshape((t, c.num_key_value_heads, d))?)?;
-        let rotary_dim = (d as f64 * c.rope_parameters.partial_rotary_factor) as usize;
         let q = rotary(
             &q,
             positions,
-            rotary_dim,
-            c.rope_parameters.rope_theta,
+            &self.inv_freq,
             c.rope_parameters.mrope_section,
         )?
         .transpose(0, 1)?
@@ -482,8 +529,7 @@ impl FullAttention {
         let k = rotary(
             &k,
             positions,
-            rotary_dim,
-            c.rope_parameters.rope_theta,
+            &self.inv_freq,
             c.rope_parameters.mrope_section,
         )?
         .transpose(0, 1)?
@@ -494,17 +540,41 @@ impl FullAttention {
             .reshape((t, c.num_key_value_heads, d))?
             .transpose(0, 1)?
             .contiguous()?;
-        let (k, v) = match initial {
+        let (k, v, initial_len) = match initial {
             Some(MixerState::Full { key, value }) => {
-                (Tensor::cat(&[key, &k], 1)?, Tensor::cat(&[value, &v], 1)?)
+                // Validate a resumed KV cache before concatenating: the head
+                // count, width and dtype must match this call's tensors.
+                let valid = match key.dims() {
+                    [kh, _, kd] => {
+                        *kh == c.num_key_value_heads
+                            && *kd == d
+                            && key.dtype() == k.dtype()
+                            && value.dims() == key.dims()
+                            && value.dtype() == key.dtype()
+                    }
+                    _ => false,
+                };
+                if !valid {
+                    return Err(Error::InvalidRequest("full-attention prefix state".into()));
+                }
+                let len = key.dim(1)?;
+                (
+                    Tensor::cat(&[key, &k], 1)?,
+                    Tensor::cat(&[value, &v], 1)?,
+                    len,
+                )
             }
-            None => (k, v),
+            None => (k, v, 0),
             _ => return Err(Error::InferenceFailed("full-attention prefix state".into())),
         };
+        // With `initial`, the concatenated K/V already cover the previous
+        // prefix, so the retained window extends past it instead of
+        // re-capturing the old tokens.
         let saved = if let Some(tokens) = capture {
+            let kept = initial_len + tokens;
             Some(MixerState::Full {
-                key: retain(&k.narrow(1, 0, tokens)?)?,
-                value: retain(&v.narrow(1, 0, tokens)?)?,
+                key: retain(&k.narrow(1, 0, kept)?)?,
+                value: retain(&v.narrow(1, 0, kept)?)?,
             })
         } else {
             None
@@ -549,19 +619,12 @@ impl Delta {
                 false,
             )?,
             z: projections.load(w, &format!("{p}.linear_attn.in_proj_z"), h, value, false)?,
-            a: projections.load(
+            ab: projections.load_fused(
                 w,
                 &format!("{p}.linear_attn.in_proj_a"),
-                h,
-                c.linear_num_value_heads,
-                false,
-            )?,
-            b: projections.load(
-                w,
                 &format!("{p}.linear_attn.in_proj_b"),
                 h,
                 c.linear_num_value_heads,
-                false,
             )?,
             out: projections.load(w, &format!("{p}.linear_attn.out_proj"), value, h, false)?,
             conv: w
@@ -611,20 +674,26 @@ impl Delta {
         } else {
             projected
         };
-        let history_tokens = history.map_or(0, Tensor::elem_count) / (2 * key + value);
+        let history_elems = history.map_or(0, Tensor::elem_count);
+        debug_assert_eq!(
+            history_elems % (2 * key + value),
+            0,
+            "convolution history must hold whole tokens"
+        );
+        let history_tokens = history_elems / (2 * key + value);
 
         let convolved = self.convolve(&projected, c.linear_conv_kernel_dim)?;
         let convolved = convolved.narrow(0, history_tokens, t)?;
         let mixed = silu(&convolved)?;
-        let a = self
-            .a
-            .forward(x)?
-            .to_dtype(DType::F32)?
+        // One GEMM computes both decay and beta projections; `x` is read once.
+        let ab = self.ab.forward(x)?.to_dtype(DType::F32)?;
+        let a = ab
+            .narrow(1, 0, heads)?
             .broadcast_add(&self.dt.to_dtype(DType::F32)?)?;
         // Stable softplus, preserving the reference's float32 decay path.
         let softplus = (a.clamp(0., f64::INFINITY)? + ((a.abs()?.neg()?.exp()? + 1.)?.log()?))?;
         let g = softplus.broadcast_mul(&self.a_log.to_dtype(DType::F32)?.exp()?.neg()?)?;
-        let beta = sigmoid(&self.b.forward(x)?.to_dtype(DType::F32)?)?;
+        let beta = sigmoid(&ab.narrow(1, heads, heads)?)?;
         #[cfg(all(feature = "metal", target_os = "macos"))]
         let prepared = self
             .kernel
@@ -668,12 +737,13 @@ impl Delta {
             #[cfg(all(feature = "metal", target_os = "macos"))]
             self.kernel.as_ref(),
         )?;
-        let out = out.to_dtype(x.dtype())?;
         let z = self.z.forward(x)?.reshape((t, heads, vd))?;
-        let gated = (self.norm.forward(&out)?.to_dtype(DType::F32)?
-            * silu(&z.to_dtype(DType::F32)?)?)?
-        .to_dtype(x.dtype())?
-        .reshape((t, value))?;
+        // `out` is already F32: skip the F32 -> model dtype -> F32 round trip.
+        // `Rms` converts non-F32 inputs to F32 internally, so feeding it F32
+        // directly is a no-op conversion and avoids extra quantization noise.
+        let gated = (self.norm.forward(&out)? * silu(&z.to_dtype(DType::F32)?)?)?
+            .to_dtype(x.dtype())?
+            .reshape((t, value))?;
         let saved = if let (Some(tokens), Some(recurrent)) = (capture, saved_recurrent) {
             let end = history_tokens + tokens;
             let count = end.min(c.linear_conv_kernel_dim - 1);
@@ -768,31 +838,36 @@ pub(super) fn causal_convolution(
     taps: usize,
 ) -> Result<Tensor> {
     let (t, width) = projected.dims2()?;
-    let mut convolved = Tensor::zeros((t, width), DType::F32, projected.device())?;
-    for tap in 0..taps {
-        let delay = taps - 1 - tap;
-        if delay >= t {
-            continue;
-        }
-        let weight = weights
-            .narrow(2, tap, 1)?
-            .reshape((1, width))?
-            .to_dtype(DType::F32)?;
-        let part = projected.narrow(0, 0, t - delay)?.broadcast_mul(&weight)?;
-        let part = if delay == 0 {
-            part
-        } else {
-            Tensor::cat(
-                &[
-                    Tensor::zeros((delay, width), DType::F32, projected.device())?,
-                    part,
-                ],
-                0,
-            )?
-        };
-        convolved = (convolved + part)?;
+    if taps == 0 {
+        return Ok(Tensor::zeros((t, width), DType::F32, projected.device())?);
     }
-    Ok(convolved)
+    let projected = projected.to_dtype(DType::F32)?;
+    // Pad once so every tap becomes a plain narrow view of the padded input.
+    // Tap `tap` reads the input delayed by `taps - 1 - tap` rows. Accumulate
+    // per tap over views: materializing a stacked [taps, t, width] tensor
+    // costs an extra full-size copy plus strided reads, which measured slower
+    // than the loop on CPU.
+    let padded = Tensor::cat(
+        &[
+            Tensor::zeros((taps - 1, width), DType::F32, projected.device())?,
+            projected,
+        ],
+        0,
+    )?;
+    let kernel = weights
+        .narrow(2, 0, taps)?
+        .squeeze(1)?
+        .to_dtype(DType::F32)?
+        .transpose(0, 1)?
+        .contiguous()?;
+    let mut acc = Tensor::zeros((t, width), DType::F32, padded.device())?;
+    for tap in 0..taps {
+        // `kernel` is contiguous, so each row is a dense `[1, width]` view.
+        let shifted = padded.narrow(0, tap, t)?;
+        let weight = kernel.narrow(0, tap, 1)?;
+        acc = (acc + shifted.broadcast_mul(&weight)?)?;
+    }
+    Ok(acc)
 }
 
 #[cfg(all(test, feature = "metal", target_os = "macos"))]
@@ -864,11 +939,14 @@ fn delta_recurrence_prefill(
     };
     let mut saved = None;
     let mut outputs = Vec::with_capacity(t);
+    // The decay depends only on `g`: compute all exps once instead of once per
+    // loop iteration.
+    let decay = g.exp()?;
     for i in 0..t {
         control.check()?;
         let key = k.narrow(0, i, 1)?.squeeze(0)?.unsqueeze(2)?;
         let query = q.narrow(0, i, 1)?.squeeze(0)?.unsqueeze(2)?;
-        state = state.broadcast_mul(&g.narrow(0, i, 1)?.reshape((heads, 1, 1))?.exp()?)?;
+        state = state.broadcast_mul(&decay.narrow(0, i, 1)?.reshape((heads, 1, 1))?)?;
         let memory = state.broadcast_mul(&key)?.sum(1)?;
         let delta = (v.narrow(0, i, 1)?.squeeze(0)? - memory)?
             .broadcast_mul(&beta.narrow(0, i, 1)?.reshape((heads, 1))?)?;
@@ -879,4 +957,69 @@ fn delta_recurrence_prefill(
         }
     }
     Ok((Tensor::cat(&outputs, 0)?, saved))
+}
+
+#[cfg(test)]
+mod tests {
+    use candle_core::{DType, Device, Tensor};
+
+    use super::*;
+
+    fn reference_convolution(projected: &Tensor, weights: &Tensor, taps: usize) -> Result<Tensor> {
+        let (t, width) = projected.dims2()?;
+        let projected = projected.to_dtype(DType::F32)?;
+        let mut convolved = Tensor::zeros((t, width), DType::F32, projected.device())?;
+        for tap in 0..taps {
+            let delay = taps - 1 - tap;
+            if delay >= t {
+                continue;
+            }
+            let weight = weights
+                .narrow(2, tap, 1)?
+                .reshape((1, width))?
+                .to_dtype(DType::F32)?;
+            let part = projected.narrow(0, 0, t - delay)?.broadcast_mul(&weight)?;
+            let part = if delay == 0 {
+                part
+            } else {
+                Tensor::cat(
+                    &[
+                        Tensor::zeros((delay, width), DType::F32, projected.device())?,
+                        part,
+                    ],
+                    0,
+                )?
+            };
+            convolved = (convolved + part)?;
+        }
+        Ok(convolved)
+    }
+
+    #[test]
+    fn test_causal_convolution_matches_reference() -> Result<()> {
+        let device = Device::Cpu;
+        for (tokens, width) in [(1, 7), (3, 5), (17, 64), (139, 128)] {
+            let x = Tensor::randn(0f32, 1., (tokens, width), &device)?;
+            let w = Tensor::randn(0f32, 1., (width, 1, 4), &device)?;
+            let expected = reference_convolution(&x, &w, 4)?;
+            let actual = causal_convolution(&x, &w, 4)?;
+            let error = (&actual - &expected)?
+                .abs()?
+                .flatten_all()?
+                .max(0)?
+                .to_scalar::<f32>()?;
+            assert!(
+                error < 1e-4,
+                "causal_convolution mismatch at {tokens}/{width}: {error}"
+            );
+        }
+        // taps == 0 returns zeros without touching the weights.
+        let zeros = causal_convolution(
+            &Tensor::randn(0f32, 1., (8, 16), &device)?,
+            &Tensor::randn(0f32, 1., (16, 1, 4), &device)?,
+            0,
+        )?;
+        assert_eq!(zeros.sum_all()?.to_scalar::<f32>()?, 0.0);
+        Ok(())
+    }
 }

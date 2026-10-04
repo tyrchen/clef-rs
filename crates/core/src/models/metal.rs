@@ -6,9 +6,11 @@
 //! offsets and buffer lengths bound every shader address. No raw FFI or unsafe
 //! Rust is used; Candle owns allocation, command lifetime and hazard tracking.
 
+use std::sync::OnceLock;
+
 use candle_core::{
     CpuStorage, CustomOp1, CustomOp2, CustomOp3, DType, Device, Error as CandleError, Layout,
-    MetalStorage, Result as CandleResult, Shape, Tensor, backend::BackendStorage,
+    MetalDevice, MetalStorage, Result as CandleResult, Shape, Tensor, backend::BackendStorage,
 };
 use candle_metal_kernels::{
     metal::{ComputePipeline, ConstantValues, Value},
@@ -16,8 +18,19 @@ use candle_metal_kernels::{
 };
 use objc2_metal::{MTLComputePipelineState, MTLDevice, MTLGPUFamily, MTLSize};
 
-use super::{Control, pointwise::DeltaPrepareKernel};
+use super::{Control, MAX_SEQUENCE_TOKENS, get_or_init_fallible, pointwise::DeltaPrepareKernel};
 use crate::{Error, Result};
+
+/// String replacement that fails unless the pattern occurs exactly once, so a
+/// shader patch can never silently become a no-op after an upstream edit.
+fn replace_once(source: &str, from: &str, to: &str) -> Result<String> {
+    if source.matches(from).count() != 1 {
+        return Err(Error::InferenceFailed(
+            "shader patch pattern matched zero or multiple times".into(),
+        ));
+    }
+    Ok(source.replacen(from, to, 1))
+}
 
 /// Retain exact-sized storage rather than an oversized best-fit scratch allocation.
 /// The pinned allocator may reuse a large free projection buffer for a tiny snapshot.
@@ -69,7 +82,9 @@ impl CustomOp1 for CompactCopy {
             .checked_mul(scalar)
             .ok_or_else(|| CandleError::Msg("compact prefix byte overflow".into()))?;
         let device = input.device();
-        let buffer = device.new_buffer_with_data(&vec![0u8; bytes])?;
+        // The destination is fully overwritten by `copy_strided_src` below,
+        // so skip the zeroed staging allocation.
+        let buffer = device.new_buffer(bytes, DType::U8, "clef_compact_copy")?;
         let mut output = MetalStorage::new(buffer, device.clone(), count, input.dtype());
         input.copy_strided_src(&mut output, 0, layout)?;
         Ok((output, layout.shape().clone()))
@@ -78,8 +93,11 @@ impl CustomOp1 for CompactCopy {
 
 #[derive(Debug, Clone)]
 pub(super) struct DeltaKernel {
-    pipeline: ComputePipeline,
-    cached_pipeline: ComputePipeline,
+    /// Compiled on first dispatch, not at model load: shader compilation is
+    /// the dominant load-latency cost and the cached variant is only needed
+    /// when prefix capture/resume is actually used.
+    pipeline: OnceLock<ComputePipeline>,
+    cached_pipeline: OnceLock<ComputePipeline>,
     preparation: Option<DeltaPrepareKernel>,
     key_dim: usize,
     value_dim: usize,
@@ -115,39 +133,9 @@ impl DeltaKernel {
             return Ok(None);
         };
         dimensions(1, 1, key_dim, value_dim)?;
-        let compile = |cached: bool| -> Result<ComputePipeline> {
-            let library = device
-                .device()
-                .new_library_with_source(
-                    &format!(
-                        "#define CLEF_VALUES {values}\n#define CLEF_CACHE {}\n{}",
-                        u8::from(cached),
-                        include_str!("delta.metal")
-                    ),
-                    None,
-                )
-                .map_err(|e| Error::InferenceFailed(format!("compile DeltaNet kernel: {e}")))?;
-            let constants = ConstantValues::new(vec![(0, Value::USize(key_dim))]);
-            let function = library
-                .get_function("clef_delta", Some(&constants))
-                .map_err(|e| Error::InferenceFailed(format!("load DeltaNet kernel: {e}")))?;
-            device
-                .device()
-                .new_compute_pipeline_state_with_function(&function)
-                .map_err(|e| Error::InferenceFailed(format!("create DeltaNet pipeline: {e}")))
-        };
-        let pipeline = compile(false)?;
-        let cached_pipeline = compile(true)?;
-        if pipeline.max_total_threads_per_threadgroup() < 128
-            || pipeline.as_ref().threadExecutionWidth() != 32
-        {
-            return Err(Error::UnsupportedCapability(
-                "DeltaNet requires 32-lane SIMD and 128-thread groups".into(),
-            ));
-        }
         Ok(Some(Self {
-            pipeline,
-            cached_pipeline,
+            pipeline: OnceLock::new(),
+            cached_pipeline: OnceLock::new(),
             preparation: if key_dim == 128 && value_dim == 128 {
                 DeltaPrepareKernel::new(&Device::Metal(device.clone()))?
             } else {
@@ -157,6 +145,50 @@ impl DeltaKernel {
             value_dim,
             values,
         }))
+    }
+    fn compile(
+        device: &MetalDevice,
+        key_dim: usize,
+        values: usize,
+        cached: bool,
+    ) -> Result<ComputePipeline> {
+        let library = device
+            .device()
+            .new_library_with_source(
+                &format!(
+                    "#define CLEF_VALUES {values}\n#define CLEF_CACHE {}\n{}",
+                    u8::from(cached),
+                    include_str!("delta.metal")
+                ),
+                None,
+            )
+            .map_err(|e| Error::InferenceFailed(format!("compile DeltaNet kernel: {e}")))?;
+        let constants = ConstantValues::new(vec![(0, Value::USize(key_dim))]);
+        let function = library
+            .get_function("clef_delta", Some(&constants))
+            .map_err(|e| Error::InferenceFailed(format!("load DeltaNet kernel: {e}")))?;
+        let pipeline = device
+            .device()
+            .new_compute_pipeline_state_with_function(&function)
+            .map_err(|e| Error::InferenceFailed(format!("create DeltaNet pipeline: {e}")))?;
+        if pipeline.max_total_threads_per_threadgroup() < 128
+            || pipeline.as_ref().threadExecutionWidth() != 32
+        {
+            return Err(Error::UnsupportedCapability(
+                "DeltaNet requires 32-lane SIMD and 128-thread groups".into(),
+            ));
+        }
+        Ok(pipeline)
+    }
+    fn pipeline(&self, device: &MetalDevice) -> Result<&ComputePipeline> {
+        get_or_init_fallible(&self.pipeline, || {
+            Self::compile(device, self.key_dim, self.values, false)
+        })
+    }
+    fn cached_pipeline(&self, device: &MetalDevice) -> Result<&ComputePipeline> {
+        get_or_init_fallible(&self.cached_pipeline, || {
+            Self::compile(device, self.key_dim, self.values, true)
+        })
     }
     pub fn forward(
         &self,
@@ -222,6 +254,9 @@ impl DeltaKernel {
             capture: capture.unwrap_or_default(),
             resume: initial.is_some(),
         };
+        // Without a prior state the shader never reads buffer 5 (`resume` is
+        // false), so aliasing the second operand to `packed` is safe and
+        // avoids a dummy allocation.
         let output = packed.apply_op2_no_bwd(initial.unwrap_or(packed), &operation)?;
         let count = tokens * heads * self.value_dim;
         let saved = if capture.is_some() {
@@ -272,13 +307,14 @@ impl DeltaKernel {
             ));
         }
         let decay = g.exp()?;
-        let packed =
-            Tensor::cat(&[q, k, v, &decay.unsqueeze(2)?, &beta.unsqueeze(2)?], 2)?.contiguous()?;
+        // `cat` already returns a contiguous tensor; the hot 128/128 path
+        // avoids this eager pack entirely via the fused `prepare` kernel.
+        let packed = Tensor::cat(&[q, k, v, &decay.unsqueeze(2)?, &beta.unsqueeze(2)?], 2)?;
         self.prepared_prefill(&packed, control, initial, capture)
     }
 }
 pub(super) fn dimensions(tokens: usize, heads: usize, key: usize, value: usize) -> Result<()> {
-    if !(1..=4096).contains(&tokens)
+    if !(1..=MAX_SEQUENCE_TOKENS).contains(&tokens)
         || !(1..=32).contains(&heads)
         || !(1..=128).contains(&key)
         || !key.is_power_of_two()
@@ -311,7 +347,8 @@ impl CustomOp1 for DeltaKernel {
         let output = device.new_buffer(count, DType::F32, "clef_delta_output")?;
         let guard = device.command_encoder()?;
         let encoder = guard.as_ref();
-        encoder.set_compute_pipeline_state(&self.pipeline);
+        let pipeline = self.pipeline(device).map_err(CandleError::wrap)?;
+        encoder.set_compute_pipeline_state(pipeline);
         encoder.set_input_buffer(0, Some(input.buffer()), offset);
         encoder.set_output_buffer(1, Some(&output), 0);
         for (index, value) in [tokens, heads, self.value_dim].into_iter().enumerate() {
@@ -384,7 +421,8 @@ impl CustomOp2 for CachedDelta {
         let output = device.new_buffer(count, DType::F32, "clef_cached_delta")?;
         let guard = device.command_encoder()?;
         let encoder = guard.as_ref();
-        encoder.set_compute_pipeline_state(&kernel.cached_pipeline);
+        let cached = kernel.cached_pipeline(device).map_err(CandleError::wrap)?;
+        encoder.set_compute_pipeline_state(cached);
         encoder.set_input_buffer(0, Some(input.buffer()), offset);
         encoder.set_output_buffer(1, Some(&output), 0);
         for (index, value) in [tokens, heads, kernel.value_dim].into_iter().enumerate() {
@@ -416,24 +454,40 @@ impl CustomOp2 for CachedDelta {
 /// The upstream 32-query / 16-key tile needs 53,760 bytes at head width 256.
 #[derive(Debug, Clone)]
 pub(super) struct AttentionKernel {
-    pipelines: [ComputePipeline; 4],
+    /// Compiled on first dispatch, not at model load: four shader variants
+    /// are the single biggest chunk of startup compile time.
+    pipelines: OnceLock<[ComputePipeline; 4]>,
 }
 impl AttentionKernel {
     pub fn new(device: &Device, width: usize) -> Result<Option<Self>> {
-        let Device::Metal(device) = device else {
+        let Device::Metal(_) = device else {
             return Ok(None);
         };
         if width != 256 {
             return Ok(None);
         }
+        Ok(Some(Self {
+            pipelines: OnceLock::new(),
+        }))
+    }
+    fn pipelines(&self, device: &MetalDevice) -> Result<&[ComputePipeline; 4]> {
+        get_or_init_fallible(&self.pipelines, || Self::compile(device))
+    }
+    fn compile(device: &MetalDevice) -> Result<[ComputePipeline; 4]> {
         // Reuse the dependency's exact algorithm and license; only instantiate
         // a smaller tile, avoiding a fork or a copied shader implementation.
         // A partial last query tile must not scan past the final KV tile.
         // The upstream causal bound rounds queries up to BQ, which can exceed keys.
-        let sdpa = SDPA.replace(
+        //
+        // `NK` here is the key element count passed from Rust; the clamp is
+        // only valid if the upstream shader's `params->NK` carries that same
+        // meaning, so re-verify against candle-metal-kernels 0.11.0 before
+        // touching this expression.
+        let sdpa = replace_once(
+            SDPA,
             "kb_lim = (q_max + BK - 1) / BK;",
             "kb_lim = min(params->NK, (q_max + BK - 1) / BK);",
-        );
+        )?;
         let source =
             format!("{sdpa}\ninstantiate_attn(float32, float, 16, 8, 256, 2, 1, float32, float)\n");
         let library = device
@@ -463,10 +517,9 @@ impl AttentionKernel {
                     })?,
             );
         }
-        let pipelines = pipelines
+        pipelines
             .try_into()
-            .map_err(|_| Error::InferenceFailed("attention pipeline count".into()))?;
-        Ok(Some(Self { pipelines }))
+            .map_err(|_| Error::InferenceFailed("attention pipeline count".into()))
     }
     pub fn forward(&self, q: &Tensor, k: &Tensor, v: &Tensor, control: &Control) -> Result<Tensor> {
         control.check()?;
@@ -554,8 +607,8 @@ impl CustomOp3 for AttentionKernel {
         if !(1..=32).contains(&heads)
             || !(1..=heads).contains(&kv_heads)
             || heads % kv_heads != 0
-            || !(1..=4096).contains(&tokens)
-            || !(tokens..=4096).contains(&keys)
+            || !(1..=MAX_SEQUENCE_TOKENS).contains(&tokens)
+            || !(tokens..=MAX_SEQUENCE_TOKENS).contains(&keys)
             || width != 256
             || kw != width
             || vl.dims() != kl.dims()
@@ -572,7 +625,8 @@ impl CustomOp3 for AttentionKernel {
         let output = device.new_buffer(count, DType::F32, "clef_flash_attention")?;
         let variant = usize::from(tokens % 16 == 0) | (usize::from(keys % 8 == 0) << 1);
         let pipeline = self
-            .pipelines
+            .pipelines(q.device())
+            .map_err(CandleError::wrap)?
             .get(variant)
             .ok_or_else(|| CandleError::Msg("attention tile variant".into()))?;
         let to_i32 = |value| i32::try_from(value).map_err(CandleError::wrap);

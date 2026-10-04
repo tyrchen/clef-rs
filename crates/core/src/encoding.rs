@@ -71,7 +71,10 @@ pub(crate) struct EncodedQuestion {
 pub struct EncodedRecord {
     pub(crate) ids: Vec<u32>,
     pub(crate) questions: Vec<EncodedQuestion>,
+    /// Tokens dropped by left-truncation; `ids` starts at original index `truncated`.
     pub(crate) truncated: usize,
+    /// Length of the reusable state prefix at the start of `ids`
+    /// (post-truncation); the cacheable prefix is `ids[..state_end]`.
     pub(crate) state_end: usize,
     #[cfg(feature = "vision")]
     pub(crate) images: Vec<crate::media::PreparedImage>,
@@ -85,6 +88,8 @@ impl Debug for EncodedRecord {
         f.debug_struct("EncodedRecord")
             .field("tokens", &self.ids.len())
             .field("fields", &self.questions.len())
+            .field("truncated", &self.truncated)
+            .field("state_end", &self.state_end)
             .finish_non_exhaustive()
     }
 }

@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Error, Result, models::qwen::PrefixState};
 
-const PREFIX_BLOCK: usize = 256;
+/// Block granularity for prefix capture; requests reuse whole blocks only.
+const PREFIX_BLOCK: usize = 128;
 const MIN_PREFIX: usize = 512;
 
 /// Exact text-prefix reuse. Zero capacity disables retention and capture overhead.
@@ -29,13 +30,13 @@ impl Default for PrefixCacheConfig {
     fn default() -> Self {
         Self {
             capacity_bytes: 0,
-            max_entries: 1,
+            max_entries: 4,
             ttl_seconds: 300,
         }
     }
 }
 impl PrefixCacheConfig {
-    /// Configure one prefix with a five-minute lifetime.
+    /// Configure up to four prefixes with a five-minute lifetime.
     ///
     /// # Errors
     /// Rejects capacities over 4 GiB.
@@ -43,7 +44,7 @@ impl PrefixCacheConfig {
     /// ```
     /// # use clef_rs_core::runtime::PrefixCacheConfig;
     /// let cache = PrefixCacheConfig::new(512 * 1024 * 1024)?;
-    /// assert_eq!(cache.max_entries, 1);
+    /// assert_eq!(cache.max_entries, 4);
     /// # Ok::<(), clef_rs_core::Error>(())
     /// ```
     pub fn new(capacity_bytes: u64) -> Result<Self> {
@@ -53,6 +54,24 @@ impl PrefixCacheConfig {
         };
         config.validate()?;
         Ok(config)
+    }
+    /// Set the maximum retained prefixes (1..=16).
+    ///
+    /// # Errors
+    /// Rejects values outside 1..=16.
+    pub fn with_max_entries(mut self, max_entries: usize) -> Result<Self> {
+        self.max_entries = max_entries;
+        self.validate()?;
+        Ok(self)
+    }
+    /// Set the absolute state lifetime in seconds (1..=3600).
+    ///
+    /// # Errors
+    /// Rejects values outside 1..=3600.
+    pub fn with_ttl_seconds(mut self, ttl_seconds: u64) -> Result<Self> {
+        self.ttl_seconds = ttl_seconds;
+        self.validate()?;
+        Ok(self)
     }
     pub(crate) fn validate(&self) -> Result<()> {
         if self.capacity_bytes > 4 * 1024 * 1024 * 1024
@@ -83,6 +102,9 @@ pub struct PrefixCacheStats {
     pub captures: u64,
     /// Total tokens skipped by successful decisions.
     pub reused_tokens: u64,
+    /// Prefix writes dropped after a failed admission check; the request itself
+    /// still succeeded.
+    pub publish_errors: u64,
     /// Currently retained entries.
     pub entries: usize,
     /// Retained tensor and key bytes.
@@ -114,10 +136,21 @@ pub(crate) struct PrefixCache {
 pub(crate) enum Reuse {
     Bypass,
     Capture(usize),
-    Hit(PrefixState),
+    /// A usable prefix was found. `extend` is the number of additional tokens
+    /// to capture (relative to this request's suffix) so the retained entry
+    /// grows toward the next block boundary; `None` means the entry already
+    /// covers the cacheable prefix.
+    Hit {
+        state: PrefixState,
+        extend: Option<usize>,
+    },
 }
 impl PrefixCache {
     pub fn configure(&mut self, config: PrefixCacheConfig) {
+        if let Err(error) = config.validate() {
+            tracing::warn!(%error, "rejecting invalid prefix cache configuration");
+            return;
+        }
         self.config = config;
         self.clear();
     }
@@ -161,12 +194,32 @@ impl PrefixCache {
             .max_by_key(|(_, entry)| entry.tokens.len())
             .map(|(index, _)| index);
         if let Some(index) = hit {
-            let entry = self.entries.remove(index).ok_or(Error::WorkerUnavailable)?;
-            let state = entry.state.clone();
-            self.entries.push_back(entry);
-            return Ok(Reuse::Hit(state));
+            // The index was produced by enumerating `self.entries` just above,
+            // so removal is infallible in practice; fall through to capture on
+            // the impossible `None` instead of inventing an error variant.
+            if let Some(entry) = self.entries.remove(index) {
+                let covered = entry.tokens.len();
+                let state = entry.state.clone();
+                self.entries.push_back(entry);
+                // Extend the retained prefix toward the next block boundary when
+                // the request carries enough new tokens; the lengthened entry
+                // subsumes the old one on publish.
+                let extend = if ids.is_empty() {
+                    None
+                } else {
+                    let target = (state_end / PREFIX_BLOCK * PREFIX_BLOCK).min(ids.len() - 1);
+                    (target > covered).then_some(target - covered)
+                };
+                return Ok(Reuse::Hit { state, extend });
+            }
+            debug_assert!(false, "prefix cache hit index became invalid");
         }
         let tokens = state_end / PREFIX_BLOCK * PREFIX_BLOCK;
+        if tokens >= ids.len() {
+            // `prefill` rejects capturing the whole request, so there is nothing
+            // worth retaining; skip the cache instead of erroring later.
+            return Ok(Reuse::Bypass);
+        }
         let estimated = estimate(tokens)?
             .checked_add(Self::key_bytes(principal, tokens)?)
             .ok_or(Error::InsufficientMemory)?;
@@ -188,6 +241,9 @@ impl PrefixCache {
         self.stats.hits = self.stats.hits.saturating_add(1);
         self.stats.reused_tokens = self.stats.reused_tokens.saturating_add(tokens as u64);
     }
+    pub fn record_publish_error(&mut self) {
+        self.stats.publish_errors = self.stats.publish_errors.saturating_add(1);
+    }
     pub fn publish(&mut self, principal: &str, ids: &[u32], state: PrefixState) -> Result<()> {
         let tokens = state.hidden.dim(0)?;
         let bytes = state
@@ -197,12 +253,21 @@ impl PrefixCache {
         if bytes > self.config.capacity_bytes {
             return Err(Error::InsufficientMemory);
         }
+        let entry_tokens: Vec<u32> = ids
+            .get(..tokens)
+            .ok_or_else(|| Error::InvalidRequest("prefix boundary".into()))?
+            .to_vec();
+        // An extended entry subsumes shorter entries for the same principal
+        // whose tokens match its prefix; drop those (and exact duplicates) so
+        // repeated publishes do not accumulate stale entries.
+        self.entries.retain(|entry| {
+            !(entry.principal == principal
+                && entry.tokens.len() <= entry_tokens.len()
+                && entry_tokens.starts_with(&entry.tokens))
+        });
         let entry = Entry {
             principal: principal.into(),
-            tokens: ids
-                .get(..tokens)
-                .ok_or_else(|| Error::InvalidRequest("prefix boundary".into()))?
-                .to_vec(),
+            tokens: entry_tokens,
             state,
             bytes,
             created: Instant::now(),
@@ -253,7 +318,7 @@ mod tests {
         let state = fixture()?;
         let bytes = state.bytes()?;
         let mut cache = PrefixCache::default();
-        cache.configure(PrefixCacheConfig::new(bytes + 4096)?);
+        cache.configure(PrefixCacheConfig::new(bytes + 4096)?.with_max_entries(1)?);
         let ids = vec![1; 600];
         assert!(matches!(
             cache.select("alice", &ids, 550, |_| Ok(bytes))?,
@@ -263,7 +328,7 @@ mod tests {
         cache.publish("alice", &ids, state.clone())?;
         assert!(matches!(
             cache.select("alice", &ids, 550, |_| Ok(bytes))?,
-            Reuse::Hit(_)
+            Reuse::Hit { .. }
         ));
         assert!(matches!(
             cache.select("bob", &ids, 550, |_| Ok(bytes))?,
@@ -280,13 +345,13 @@ mod tests {
         ));
         assert!(matches!(
             cache.select("alice", &ids, 550, |_| Ok(bytes * 2))?,
-            Reuse::Hit(_)
+            Reuse::Hit { .. }
         ));
         assert!(cache.publish("bob", &[], state.clone()).is_err());
         assert_eq!(cache.stats().entries, 1);
         assert!(matches!(
             cache.select("alice", &ids, 550, |_| Ok(bytes))?,
-            Reuse::Hit(_)
+            Reuse::Hit { .. }
         ));
         cache.publish("bob", &ids, state.clone())?;
         assert_eq!(cache.stats().entries, 1);
@@ -297,7 +362,7 @@ mod tests {
         ));
         assert!(matches!(
             cache.select("bob", &ids, 550, |_| Ok(bytes))?,
-            Reuse::Hit(_)
+            Reuse::Hit { .. }
         ));
         cache.configure(PrefixCacheConfig::new(bytes - 1)?);
         assert!(matches!(
@@ -322,7 +387,7 @@ mod tests {
         cache.publish("bob", &ids, state.clone())?;
         assert!(matches!(
             cache.select("alice", &ids, 550, |_| Ok(bytes))?,
-            Reuse::Hit(_)
+            Reuse::Hit { .. }
         ));
         cache.publish("carol", &ids, state)?;
         assert_eq!(cache.stats().entries, 2);
@@ -333,11 +398,11 @@ mod tests {
         ));
         assert!(matches!(
             cache.select("alice", &ids, 550, |_| Ok(bytes))?,
-            Reuse::Hit(_)
+            Reuse::Hit { .. }
         ));
         assert!(matches!(
             cache.select("carol", &ids, 550, |_| Ok(bytes))?,
-            Reuse::Hit(_)
+            Reuse::Hit { .. }
         ));
         Ok(())
     }
@@ -380,6 +445,64 @@ mod tests {
             assert!(config.validate().is_err());
         }
         assert_eq!(PrefixCacheConfig::new(1024)?.reservation()?, 2457);
+        Ok(())
+    }
+    #[test]
+    fn test_should_build_cache_config_with_builders() -> Result<()> {
+        let config = PrefixCacheConfig::new(1024)?
+            .with_max_entries(8)?
+            .with_ttl_seconds(60)?;
+        assert_eq!(config.max_entries, 8);
+        assert_eq!(config.ttl_seconds, 60);
+        assert!(PrefixCacheConfig::new(1024)?.with_max_entries(0).is_err());
+        assert!(PrefixCacheConfig::new(1024)?.with_max_entries(17).is_err());
+        assert!(PrefixCacheConfig::new(1024)?.with_ttl_seconds(0).is_err());
+        assert!(
+            PrefixCacheConfig::new(1024)?
+                .with_ttl_seconds(3601)
+                .is_err()
+        );
+        // Invalid configurations are rejected instead of applied.
+        let mut cache = PrefixCache::default();
+        cache.configure(PrefixCacheConfig::new(1024)?);
+        cache.configure(PrefixCacheConfig {
+            max_entries: 0,
+            ..PrefixCacheConfig::new(1024)?
+        });
+        assert_eq!(cache.config.max_entries, 4);
+        Ok(())
+    }
+    #[test]
+    fn test_should_extend_hits_and_bypass_full_captures() -> Result<()> {
+        let state = fixture()?;
+        let bytes = state.bytes()?;
+        let mut cache = PrefixCache::default();
+        cache.configure(PrefixCacheConfig::new(4 * bytes + 16384)?);
+        let ids = vec![1; 700];
+        cache.publish("alice", &ids, state.clone())?;
+        // 512 tokens covered, 640 cacheable: extend by one 128-token block.
+        match cache.select("alice", &ids, 640, |_| Ok(bytes))? {
+            Reuse::Hit {
+                extend: Some(128), ..
+            } => {}
+            other => panic!("expected extend by 128, got {other:?}"),
+        }
+        // Nothing new to capture: no extension.
+        match cache.select("alice", &ids, 600, |_| Ok(bytes))? {
+            Reuse::Hit { extend: None, .. } => {}
+            other => panic!("expected no extension, got {other:?}"),
+        }
+        // Capturing the whole request is rejected by prefill: bypass instead.
+        // (Different content so the existing entry does not hit.)
+        let changed = vec![2; 512];
+        assert!(matches!(
+            cache.select("alice", &changed, 512, |_| Ok(bytes))?,
+            Reuse::Bypass
+        ));
+        // Re-publishing for the same principal and token prefix replaces the
+        // old entry instead of accumulating duplicates.
+        cache.publish("alice", &ids, state)?;
+        assert_eq!(cache.stats().entries, 1);
         Ok(())
     }
 }

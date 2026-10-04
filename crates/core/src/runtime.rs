@@ -335,6 +335,17 @@ pub struct DirectEngine {
     #[cfg(feature = "vision")]
     vision: Option<crate::models::vision::Vision>,
 }
+/// Per-request inputs for [`DirectEngine::execute_measured`]; groups the
+/// argument list so call sites stay readable.
+#[derive(Debug)]
+struct ExecuteMeasured<'a> {
+    request: &'a DecisionRequest,
+    encoded: &'a EncodedRecord,
+    control: &'a Control,
+    principal: &'a str,
+    allow_reuse: bool,
+    timings: Option<&'a mut ExecutionTimings>,
+}
 impl DirectEngine {
     /// Conservative plan before allocation.
     ///
@@ -541,7 +552,14 @@ impl DirectEngine {
     /// ```
     pub fn decide_uncached(&mut self, request: &DecisionRequest) -> Result<DecisionResult> {
         let (encoded, control) = self.prepare_record(request)?;
-        self.execute_measured(request, &encoded, &control, "embedded", false, None)
+        self.execute_measured(ExecuteMeasured {
+            request,
+            encoded: &encoded,
+            control: &control,
+            principal: "embedded",
+            allow_reuse: false,
+            timings: None,
+        })
     }
     /// Measure preparation, backbone, head, conversion and synchronization separately.
     /// Diagnostic barriers are included in the reported stages.
@@ -568,14 +586,14 @@ impl DirectEngine {
             encoding_ms: start.elapsed().as_secs_f64() * 1000.,
             ..ExecutionTimings::default()
         };
-        let result = self.execute_measured(
+        let result = self.execute_measured(ExecuteMeasured {
             request,
-            &encoded,
-            &control,
-            "embedded",
-            true,
-            Some(&mut timings),
-        )?;
+            encoded: &encoded,
+            control: &control,
+            principal: "embedded",
+            allow_reuse: true,
+            timings: Some(&mut timings),
+        })?;
         timings.total_ms = start.elapsed().as_secs_f64() * 1000.;
         Ok((result, timings))
     }
@@ -635,17 +653,24 @@ impl DirectEngine {
         control: &Control,
         principal: &str,
     ) -> Result<DecisionResult> {
-        self.execute_measured(request, encoded, control, principal, true, None)
+        self.execute_measured(ExecuteMeasured {
+            request,
+            encoded,
+            control,
+            principal,
+            allow_reuse: true,
+            timings: None,
+        })
     }
-    fn execute_measured(
-        &mut self,
-        request: &DecisionRequest,
-        encoded: &EncodedRecord,
-        control: &Control,
-        principal: &str,
-        allow_reuse: bool,
-        mut timings: Option<&mut ExecutionTimings>,
-    ) -> Result<DecisionResult> {
+    fn execute_measured(&mut self, params: ExecuteMeasured<'_>) -> Result<DecisionResult> {
+        let ExecuteMeasured {
+            request,
+            encoded,
+            control,
+            principal,
+            allow_reuse,
+            mut timings,
+        } = params;
         let mut captured = None;
         let mut reused = 0;
         let result = (|| {
@@ -658,7 +683,7 @@ impl DirectEngine {
             let reuse = if cacheable && allow_reuse {
                 self.prefix_cache
                     .select(principal, &encoded.ids, encoded.state_end, |tokens| {
-                        self.backbone.prefix_bytes(tokens)
+                        self.backbone.prefix_bytes_upper_bound(tokens)
                     })?
             } else {
                 Reuse::Bypass
@@ -672,15 +697,19 @@ impl DirectEngine {
                     captured = state;
                     hidden
                 }
-                Reuse::Hit(state) => {
+                Reuse::Hit { state, extend } => {
                     reused = state.hidden.dim(0)?;
                     let suffix = encoded
                         .ids
                         .get(reused..)
                         .ok_or_else(|| Error::InvalidRequest("prefix boundary".into()))?;
-                    self.backbone
-                        .prefill(suffix, control, Some(&state), None)?
-                        .0
+                    // `extend` is a block-aligned extension target: capture the
+                    // lengthened prefix so the next request reuses more.
+                    let (hidden, extended) =
+                        self.backbone
+                            .prefill(suffix, control, Some(&state), extend)?;
+                    captured = extended;
+                    hidden
                 }
             };
             if let Some(timings) = timings.as_deref_mut() {
@@ -717,9 +746,15 @@ impl DirectEngine {
             timings.synchronization_ms = started.elapsed().as_secs_f64() * 1000.;
         }
         if result.is_ok() {
-            control.check()?;
-            if let Some(state) = captured {
-                self.prefix_cache.publish(principal, &encoded.ids, state)?;
+            // A cancelled or failed cache write must not turn a successful
+            // decision into an error: cancellation only skips the publish, and
+            // a publish failure is recorded as a stat with a warning.
+            if control.check().is_ok()
+                && let Some(state) = captured
+                && let Err(error) = self.prefix_cache.publish(principal, &encoded.ids, state)
+            {
+                tracing::warn!(%error, "prefix cache publish failed");
+                self.prefix_cache.record_publish_error();
             }
             if reused > 0 {
                 self.prefix_cache.record_hit(reused);
@@ -1668,6 +1703,11 @@ mod release_tests {
         assert_eq!(expected.revision, actual.revision);
         assert_eq!(expected.manifest_digest, actual.manifest_digest);
         assert_eq!(expected.execution_profile, actual.execution_profile);
+        assert_eq!(
+            expected.answers.len(),
+            actual.answers.len(),
+            "answer count mismatch would silently truncate the zip below"
+        );
         let mut errors = Vec::new();
         for ((id, expected), (actual_id, actual)) in expected.answers.iter().zip(&actual.answers) {
             assert_eq!(id, actual_id);

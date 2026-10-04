@@ -1,8 +1,18 @@
 #include <metal_stdlib>
 using namespace metal;
+// Deliberately *not* a performance choice: disabling FP contraction and
+// reassociation keeps every multiply-add rounded exactly like the portable
+// CPU reference, so Metal and portable results stay bit-identical. Removing
+// these pragmas would let the compiler fuse FMAs and reorder reductions,
+// silently changing numerics.
 #pragma clang fp contract(off)
 #pragma clang fp reassociate(off)
 constant ulong CLEF_KEY_DIM [[function_constant(0)]];
+// Vector width per value-column group: 1, 2 or 4, chosen by the Rust side
+// from the GPU family (wider on Apple10+). The `Values` branches below keep
+// the per-lane register footprint bounded while the float4 paths maximize
+// vector throughput; `CLEF_SECTIONS`/`CLEF_ACTIVE` derive the section count
+// and the live lanes from it so every branch stays in sync.
 #if CLEF_VALUES == 1
 using Values = float;
 #elif CLEF_VALUES == 2
@@ -33,6 +43,9 @@ kernel void clef_delta(
     uint head = group / tiles;
     uint value = ((group % tiles) * 4 + lane / 32) * CLEF_VALUES;
     uint key_lane = lane % 32;
+    // Precondition: key_dim <= 128, so parts <= 4 and the fixed-size
+    // `keys`/`queries`/`products` register arrays below never overflow.
+    // Enforced on the Rust side (`dimensions` + `CLEF_KEY_DIM` constant).
     uint parts = (key_dim + 31) / 32;
     uint packed_width = 2 * key_dim + value_dim + 2;
     Values state[4 * CLEF_SECTIONS];
@@ -82,10 +95,20 @@ kernel void clef_delta(
             // Preserve the reference (0+64)+(32+96) reduction per value column.
             Values dot = (products[0] + products[2]) + (products[1] + products[3]);
             Values memory = simd_sum(dot);
+            // The v values depend only on the subgroup (`first` is constant
+            // across the 32 lanes of a subgroup), so one lane loads and the
+            // rest take it via broadcast instead of 32 redundant loads.
             float4 loaded = float4(0);
-            #pragma clang loop unroll(full)
-            for (uint v = 0; v < CLEF_ACTIVE; ++v)
-                if (first + v < value_dim) loaded[v] = input[base + 2 * key_dim + first + v];
+            if (key_lane == 0) {
+                #pragma clang loop unroll(full)
+                for (uint v = 0; v < CLEF_ACTIVE; ++v)
+                    if (first + v < value_dim) loaded[v] = input[base + 2 * key_dim + first + v];
+            }
+            loaded = float4(
+                simd_broadcast(loaded.x, 0),
+                simd_broadcast(loaded.y, 0),
+                simd_broadcast(loaded.z, 0),
+                simd_broadcast(loaded.w, 0));
 #if CLEF_VALUES == 1
             Values actual = loaded.x;
 #elif CLEF_VALUES == 2
@@ -100,6 +123,10 @@ kernel void clef_delta(
                 products[p] = state[section * 4 + p] * queries[p];
             }
 #if CLEF_CACHE
+            // Capture writes the recurrent state after the first `capture`
+            // tokens to the tail of the output buffer, so a later call can
+            // resume from exactly this point. `capture == 0` disables it;
+            // the Rust side rejects `capture > tokens`.
             if (t + 1 == capture) {
                 for (uint p = 0; p < parts; ++p) {
                     uint index = key_lane + p * 32;

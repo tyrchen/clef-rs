@@ -293,6 +293,7 @@ fn summarize(samples: &[f64]) -> Summary {
     sorted.sort_by(f64::total_cmp);
     let count = sorted.len();
     let mean = samples.iter().sum::<f64>() / count.max(1) as f64;
+    let max_ms = sorted.last().copied().unwrap_or_default();
     let percentile = |numerator: usize| {
         let rank = count
             .saturating_mul(numerator)
@@ -300,15 +301,22 @@ fn summarize(samples: &[f64]) -> Summary {
             .saturating_sub(1);
         sorted.get(rank).copied().unwrap_or_default()
     };
+    // With fewer than 100 samples a percentile rank is noise; report the max
+    // instead of a misleading p95/p99.
+    let (p95_ms, p99_ms) = if count < 100 {
+        (max_ms, max_ms)
+    } else {
+        (percentile(95), percentile(99))
+    };
     let variance = samples.iter().map(|n| (n - mean).powi(2)).sum::<f64>() / count.max(1) as f64;
     Summary {
         count,
         mean_ms: mean,
         min_ms: sorted.first().copied().unwrap_or_default(),
         p50_ms: percentile(50),
-        p95_ms: percentile(95),
-        p99_ms: percentile(99),
-        max_ms: sorted.last().copied().unwrap_or_default(),
+        p95_ms,
+        p99_ms,
+        max_ms,
         standard_deviation_ms: variance.sqrt(),
     }
 }
@@ -597,12 +605,15 @@ fn save_reuse(
 ) -> Result<()> {
     let mut cases = Vec::new();
     let write = |cases: &[ReuseCase], complete: bool, engine: &DirectEngine| -> Result<()> {
+        // Atomic write like `save`: a crash never leaves a truncated report.
+        let temporary = output.with_extension("partial.json");
         serde_json::to_writer_pretty(
-            File::create(output)?,
+            File::create(&temporary)?,
             &json!({"schemaVersion":1,"revision":ModelPreset::ClefFlash.revision(),
             "manifestDigest":snapshot.digest(), "profile":profile.name(), "memoryPlan":plan, "loadMs":load_ms,
             "cases":cases, "deviceMemory":engine.device_memory(), "complete":complete}),
         )?;
+        fs::rename(&temporary, output)?;
         Ok(())
     };
     for (case, input) in settings.cases.iter().zip(inputs) {

@@ -422,7 +422,7 @@ mod tests {
             store.open(ModelPreset::ClefFlash).await?,
             profile.clone(),
             RuntimeConfig::builder()
-                .prefix_cache(PrefixCacheConfig::new(512 * 1024 * 1024)?)
+                .prefix_cache(PrefixCacheConfig::new(512 * 1024 * 1024)?.with_max_entries(4)?)
                 .build(),
         )
         .await?;

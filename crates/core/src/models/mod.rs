@@ -46,6 +46,27 @@ pub(crate) struct Control {
     pub cancel: Arc<AtomicBool>,
     pub deadline: Instant,
 }
+/// Maximum sequence length accepted by the prefill path and the Metal kernels.
+///
+/// This is a kernel ABI constraint, not the model's context window: the fused
+/// shaders assume `tokens <= MAX_SEQUENCE_TOKENS` in their tile grids and
+/// static shared-memory layouts. Raising it requires updating every kernel
+/// that hard-codes the bound.
+pub(crate) const MAX_SEQUENCE_TOKENS: usize = 4096;
+/// Stable replacement for `OnceLock::get_or_try_init` (nightly-only):
+/// initializes the cell on first use. Racing threads may each compile a
+/// value; `set` keeps the first and the losers are dropped.
+#[cfg(all(feature = "metal", target_os = "macos"))]
+pub(crate) fn get_or_init_fallible<T>(
+    cell: &std::sync::OnceLock<T>,
+    init: impl FnOnce() -> Result<T>,
+) -> Result<&T> {
+    if cell.get().is_none() {
+        let _ = cell.set(init()?);
+    }
+    cell.get()
+        .ok_or_else(|| Error::InferenceFailed("lazy initialization race".into()))
+}
 impl Control {
     pub fn check(&self) -> Result<()> {
         if self.cancel.load(Ordering::Acquire) {
@@ -130,7 +151,7 @@ mod tests {
             let state = state.ok_or(Error::ArtifactMissing)?;
             assert_eq!(
                 state.bytes()?,
-                backbone.prefix_bytes(boundary)?
+                backbone.prefix_bytes_upper_bound(boundary)?
                     - if boundary < 3 {
                         u64::try_from((3 - boundary) * 3 * 16 * 4)
                             .map_err(|_| Error::InsufficientMemory)?
@@ -139,11 +160,29 @@ mod tests {
                     }
             );
             let suffix = ids.get(boundary..).ok_or(Error::ArtifactMissing)?;
-            assert!(
-                backbone
-                    .prefill(suffix, &control(), Some(&state), Some(1))
-                    .is_err()
-            );
+            // Extending a retained prefix must match a fresh full prefill, and
+            // the lengthened state must resume exactly like a fresh capture.
+            let extension = 1;
+            if suffix.len() > extension {
+                let (extended_hidden, extended_state) =
+                    backbone.prefill(suffix, &control(), Some(&state), Some(extension))?;
+                assert_close(&extended_hidden, &expected)?;
+                let extended_state = extended_state.ok_or(Error::ArtifactMissing)?;
+                assert_eq!(extended_state.hidden.dim(0)?, boundary + extension);
+                let rest = ids
+                    .get(boundary + extension..)
+                    .ok_or(Error::ArtifactMissing)?;
+                let resumed = backbone
+                    .prefill(rest, &control(), Some(&extended_state), None)?
+                    .0;
+                assert_close(&resumed, &expected)?;
+            } else {
+                // No room for a strict-prefix capture: still rejected.
+                assert!(matches!(
+                    backbone.prefill(suffix, &control(), Some(&state), Some(extension)),
+                    Err(Error::InvalidRequest(_))
+                ));
+            }
             let resumed = backbone.prefill(suffix, &control(), Some(&state), None)?.0;
             assert_close(&resumed, &expected)?;
             let mut changed = ids.clone();
@@ -166,7 +205,10 @@ mod tests {
                 &expected,
             )?;
         }
-        assert!(backbone.prefill(&ids, &control(), None, Some(20)).is_err());
+        assert!(matches!(
+            backbone.prefill(&ids, &control(), None, Some(20)),
+            Err(Error::InvalidRequest(_))
+        ));
         Ok(())
     }
     #[test]

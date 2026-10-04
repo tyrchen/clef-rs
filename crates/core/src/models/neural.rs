@@ -1,5 +1,7 @@
 //! Safe F16 projections through Metal 4 tensor operations on Apple GPU family 10.
 
+use std::sync::OnceLock;
+
 use candle_core::{
     CpuStorage, CustomOp2, CustomOp3, DType, Device, Error as CandleError, Layout, MetalDevice,
     MetalStorage, Result as CandleResult, Shape, Tensor, backend::BackendStorage,
@@ -10,15 +12,23 @@ use objc2_metal::{
     MTLMathMode, MTLSize,
 };
 
+use super::get_or_init_fallible;
 use crate::{Error, Result};
 
 #[derive(Debug, Clone)]
-struct TileKernel {
+struct TilePipelines {
     pipeline: ComputePipeline,
     gated_pipeline: ComputePipeline,
+}
+#[derive(Debug, Clone)]
+struct TileKernel {
+    /// Compiled on first dispatch, not at model load: shader compilation is
+    /// the dominant load-latency cost and unused tile shapes never pay it.
+    pipelines: OnceLock<TilePipelines>,
     tile_m: usize,
     tile_n: usize,
     walk: usize,
+    k_block: usize,
 }
 #[derive(Debug, Clone)]
 pub(super) struct GemmKernel {
@@ -41,10 +51,10 @@ impl GemmKernel {
             return Ok(None);
         }
         Ok(Some(Self {
-            standard: TileKernel::compile(device, 64, 64)?,
-            wide: TileKernel::compile(device, 64, 128)?,
+            standard: TileKernel::compile(64, 64),
+            wide: TileKernel::compile(64, 128),
             #[cfg(test)]
-            local: TileKernel::compile_variant(device, 64, 128, 2, 0)?,
+            local: TileKernel::compile_variant(64, 128, 2, 0),
         }))
     }
     pub fn forward(&self, x: &Tensor, weight: &Tensor) -> CandleResult<Tensor> {
@@ -65,62 +75,68 @@ impl GemmKernel {
     }
 }
 impl TileKernel {
-    fn compile(device: &MetalDevice, tile_m: usize, tile_n: usize) -> Result<Self> {
-        Self::compile_variant(device, tile_m, tile_n, 0, 0)
+    fn compile(tile_m: usize, tile_n: usize) -> Self {
+        Self::compile_variant(tile_m, tile_n, 0, 0)
     }
-    fn compile_variant(
-        device: &MetalDevice,
-        tile_m: usize,
-        tile_n: usize,
-        walk: usize,
-        k_block: usize,
-    ) -> Result<Self> {
-        let options = MTLCompileOptions::new();
-        options.setLanguageVersion(MTLLanguageVersion::Version4_0);
-        options.setMathMode(MTLMathMode::Safe);
-        let source = format!(
-            "#define CLEF_TILE_M {tile_m}\n#define CLEF_TILE_N {tile_n}\n#define CLEF_WALK \
-             {walk}\n#define CLEF_K_BLOCK {k_block}\n{}",
-            include_str!("neural.metal")
-        );
-        let library = device
-            .device()
-            .new_library_with_source(&source, Some(&options))
-            .map_err(|e| Error::InferenceFailed(format!("compile Metal 4 projection: {e}")))?;
-        let function = library
-            .get_function("clef_neural_gemm", None)
-            .map_err(|e| Error::InferenceFailed(format!("load Metal 4 projection: {e}")))?;
-        let pipeline = device
-            .device()
-            .new_compute_pipeline_state_with_function(&function)
-            .map_err(|e| Error::InferenceFailed(format!("create Metal 4 projection: {e}")))?;
-        if pipeline.max_total_threads_per_threadgroup() < 128
-            || pipeline.as_ref().threadExecutionWidth() != 32
-        {
-            return Err(Error::UnsupportedCapability(
-                "Metal 4 projection thread geometry".into(),
-            ));
-        }
-        let gated_function = library
-            .get_function("clef_neural_gated", None)
-            .map_err(|e| Error::InferenceFailed(format!("load gated projection: {e}")))?;
-        let gated_pipeline = device
-            .device()
-            .new_compute_pipeline_state_with_function(&gated_function)
-            .map_err(|e| Error::InferenceFailed(format!("create gated projection: {e}")))?;
-        if gated_pipeline.max_total_threads_per_threadgroup() < 128
-            || gated_pipeline.as_ref().threadExecutionWidth() != 32
-        {
-            return Err(Error::UnsupportedCapability(
-                "gated projection thread geometry".into(),
-            ));
-        }
-        Ok(Self {
-            pipeline,
-            gated_pipeline,
+    fn compile_variant(tile_m: usize, tile_n: usize, walk: usize, k_block: usize) -> Self {
+        Self {
+            pipelines: OnceLock::new(),
             tile_m,
             tile_n,
             walk,
+            k_block,
+        }
+    }
+    fn pipelines(&self, device: &MetalDevice) -> Result<&TilePipelines> {
+        get_or_init_fallible(&self.pipelines, || {
+            let options = MTLCompileOptions::new();
+            options.setLanguageVersion(MTLLanguageVersion::Version4_0);
+            options.setMathMode(MTLMathMode::Safe);
+            let source = format!(
+                "#define CLEF_TILE_M {tile_m}\n#define CLEF_TILE_N {tile_n}\n#define CLEF_WALK \
+                 {walk}\n#define CLEF_K_BLOCK {k_block}\n{}",
+                include_str!("neural.metal"),
+                tile_m = self.tile_m,
+                tile_n = self.tile_n,
+                walk = self.walk,
+                k_block = self.k_block,
+            );
+            let library = device
+                .device()
+                .new_library_with_source(&source, Some(&options))
+                .map_err(|e| Error::InferenceFailed(format!("compile Metal 4 projection: {e}")))?;
+            let function = library
+                .get_function("clef_neural_gemm", None)
+                .map_err(|e| Error::InferenceFailed(format!("load Metal 4 projection: {e}")))?;
+            let pipeline = device
+                .device()
+                .new_compute_pipeline_state_with_function(&function)
+                .map_err(|e| Error::InferenceFailed(format!("create Metal 4 projection: {e}")))?;
+            if pipeline.max_total_threads_per_threadgroup() < 128
+                || pipeline.as_ref().threadExecutionWidth() != 32
+            {
+                return Err(Error::UnsupportedCapability(
+                    "Metal 4 projection thread geometry".into(),
+                ));
+            }
+            let gated_function = library
+                .get_function("clef_neural_gated", None)
+                .map_err(|e| Error::InferenceFailed(format!("load gated projection: {e}")))?;
+            let gated_pipeline = device
+                .device()
+                .new_compute_pipeline_state_with_function(&gated_function)
+                .map_err(|e| Error::InferenceFailed(format!("create gated projection: {e}")))?;
+            if gated_pipeline.max_total_threads_per_threadgroup() < 128
+                || gated_pipeline.as_ref().threadExecutionWidth() != 32
+            {
+                return Err(Error::UnsupportedCapability(
+                    "gated projection thread geometry".into(),
+                ));
+            }
+            Ok(TilePipelines {
+                pipeline,
+                gated_pipeline,
+            })
         })
     }
     pub fn forward(&self, x: &Tensor, weight: &Tensor) -> CandleResult<Tensor> {
@@ -233,10 +249,11 @@ impl TileKernel {
         let output = device.new_buffer(count, DType::F16, "clef_neural_gemm")?;
         let guard = device.command_encoder()?;
         let encoder = guard.as_ref();
+        let pipelines = self.pipelines(device).map_err(CandleError::wrap)?;
         encoder.set_compute_pipeline_state(if up.is_some() {
-            &self.gated_pipeline
+            &pipelines.gated_pipeline
         } else {
-            &self.pipeline
+            &pipelines.pipeline
         });
         if let (Some((storage, _)), Some(offset)) = (up, up_offset) {
             encoder.set_input_buffer(6, Some(storage.buffer()), offset);
@@ -320,7 +337,7 @@ mod tests {
     #[ignore = "requires M5; profiles fused FFN register occupancy"]
     fn test_should_profile_metal4_gated_tiles() -> Result<()> {
         let device = Device::new_metal(0)?;
-        let Device::Metal(metal) = &device else {
+        let Device::Metal(_) = &device else {
             return Err(Error::ArtifactMissing);
         };
         let weight = Tensor::full(0.01f32, (12288, 4096), &device)?.to_dtype(DType::F16)?;
@@ -333,7 +350,7 @@ mod tests {
             (128, 64),
             (128, 128),
         ] {
-            let tile = TileKernel::compile(metal, m, n)?;
+            let tile = TileKernel::compile(m, n);
             for rows in [1024, 4096] {
                 let x = Tensor::full(0.01f32, (rows, 4096), &device)?.to_dtype(DType::F16)?;
                 for sample in 0..4 {
@@ -356,13 +373,13 @@ mod tests {
     #[ignore = "requires M5; long-prefill GEMM locality and K synchronization sweep"]
     fn test_should_profile_metal4_long_prefill_variants() -> Result<()> {
         let device = Device::new_metal(0)?;
-        let Device::Metal(metal) = &device else {
+        let Device::Metal(_) = &device else {
             return Err(Error::ArtifactMissing);
         };
         for tile_n in [64, 128] {
             for walk in [0, 1, 2] {
                 for k_block in [0, 128, 512, 1024] {
-                    let kernel = TileKernel::compile_variant(metal, 64, tile_n, walk, k_block)?;
+                    let kernel = TileKernel::compile_variant(64, tile_n, walk, k_block);
                     for (n, k) in [(12288, 4096), (4096, 12288), (8192, 4096), (4096, 4096)] {
                         let w = Tensor::full(0.01f32, (n, k), &device)?.to_dtype(DType::F16)?;
                         for rows in [1024, 4096] {
@@ -391,7 +408,7 @@ mod tests {
     #[ignore = "requires M5; synchronized full-shape tile sweep"]
     fn test_should_profile_metal4_projection_tiles() -> Result<()> {
         let device = Device::new_metal(0)?;
-        let Device::Metal(metal) = &device else {
+        let Device::Metal(_) = &device else {
             return Err(Error::ArtifactMissing);
         };
         for (tile_m, tile_n) in [
@@ -402,7 +419,7 @@ mod tests {
             (128, 64),
             (128, 128),
         ] {
-            let kernel = TileKernel::compile(metal, tile_m, tile_n)?;
+            let kernel = TileKernel::compile(tile_m, tile_n);
             for (n, k) in [
                 (12288, 4096),
                 (4096, 12288),
